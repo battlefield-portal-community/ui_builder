@@ -1,6 +1,6 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { UiBuilderService } from '../services/ui-builder.service';
+import { UiBuilderService, UIExportArtifacts } from '../services/ui-builder.service';
 import { UIElementTypes, UIElement } from '../../models/types';
 
 @Component({
@@ -16,6 +16,8 @@ export class SideMenuComponent {
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
   selectedElement = computed(() => this.uiBuilder.getSelectedElement());
+  exportModalOpen = signal(false);
+  exportArtifacts = signal<UIExportArtifacts | null>(null);
 
   constructor(private uiBuilder: UiBuilderService) {}
 
@@ -51,21 +53,45 @@ export class SideMenuComponent {
   }
 
   exportJson() {
-    const json = this.uiBuilder.exportToJson();
-    
-    // Create a blob and download
-    const blob = new Blob([json], { type: 'application/json' });
+    const artifacts = this.uiBuilder.generateExportArtifacts();
+    this.exportArtifacts.set(artifacts);
+    this.exportModalOpen.set(true);
+  }
+
+  closeExportModal() {
+    this.exportModalOpen.set(false);
+  }
+
+  async copyExportContent(section: 'typescript' | 'strings') {
+    const artifacts = this.exportArtifacts();
+    if (!artifacts) return;
+
+    const content = section === 'typescript' ? artifacts.typescriptCode : artifacts.stringsJson;
+
+    try {
+      await navigator.clipboard.writeText(content);
+    } catch (error) {
+      console.error('Failed to copy export content:', error);
+    }
+  }
+
+  downloadExportContent(section: 'typescript' | 'strings') {
+    const artifacts = this.exportArtifacts();
+    if (!artifacts) return;
+
+    const content = section === 'typescript' ? artifacts.typescriptCode : artifacts.stringsJson;
+    const filename = section === 'typescript' ? 'ui-export.ts' : 'ui-strings.json';
+    const type = section === 'typescript' ? 'text/plain' : 'application/json';
+
+    const blob = new Blob([content], { type });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'ui-elements.json';
+    a.download = filename;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    
-    // Also log to console for easy copying
-    console.log('Exported JSON:', json);
   }
 
   clearAll() {

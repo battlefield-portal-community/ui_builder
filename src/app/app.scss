@@ -12,6 +12,20 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+.ui-builder > app-side-menu {
+  flex: 0 0 280px;
+}
+
+.ui-builder > app-canvas {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+}
+
+.ui-builder > app-properties-editor {
+  flex: 0 0 320px;
+}
+
 * {
   box-sizing: border-box;
 }

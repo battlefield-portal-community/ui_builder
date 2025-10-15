@@ -47,7 +47,7 @@ export type UIElementTypes = 'Container' | 'Text' | 'Image' | 'Button';
 
 type UIVector = number[];
 
-interface UIParams {
+export interface UIParams {
     name: string;
     type: UIElementTypes;
     position: number[];

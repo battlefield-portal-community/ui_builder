@@ -18,9 +18,21 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   private readonly targetWidth = 1920;
   private readonly targetHeight = 1080;
   private scale = 0.5; // Scale factor for display
+  private readonly minScale = 0.25;
+  private readonly maxScale = 2;
+  private readonly zoomStep = 0.15;
 
-  canvasWidth = this.targetWidth * this.scale;
-  canvasHeight = this.targetHeight * this.scale;
+  get canvasWidth(): number {
+    return this.targetWidth * this.scale;
+  }
+
+  get canvasHeight(): number {
+    return this.targetHeight * this.scale;
+  }
+
+  get scalePercent(): number {
+    return Math.round(this.scale * 100);
+  }
 
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
@@ -42,21 +54,20 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   private boundMouseMove = this.onMouseMove.bind(this);
   private boundMouseUp = this.onMouseUp.bind(this);
   private boundKeyDown = this.onKeyDown.bind(this);
-  private resizeObserver?: ResizeObserver;
-  private boundWindowResize = this.updateCanvasScale.bind(this);
-
+  private boundWheel = (event: WheelEvent) => this.onCanvasWheel(event);
   constructor(private uiBuilder: UiBuilderService) {}
 
   ngAfterViewInit() {
-    this.setupResizeObserver();
-    this.updateCanvasScale();
-
     // Set up mouse event listeners for drag and drop
     document.addEventListener('mousemove', this.boundMouseMove);
     document.addEventListener('mouseup', this.boundMouseUp);
     
     // Set up keyboard event listener for delete key
     document.addEventListener('keydown', this.boundKeyDown);
+
+    if (this.canvasContainer) {
+      this.canvasContainer.nativeElement.addEventListener('wheel', this.boundWheel, { passive: false });
+    }
   }
 
   ngOnDestroy() {
@@ -65,49 +76,54 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     document.removeEventListener('mouseup', this.boundMouseUp);
     document.removeEventListener('keydown', this.boundKeyDown);
 
-    if (this.resizeObserver && this.canvasContainer) {
-      this.resizeObserver.unobserve(this.canvasContainer.nativeElement);
-      this.resizeObserver.disconnect();
+    if (this.canvasContainer) {
+      this.canvasContainer.nativeElement.removeEventListener('wheel', this.boundWheel);
     }
-
-    window.removeEventListener('resize', this.boundWindowResize);
   }
 
-  private setupResizeObserver() {
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', this.boundWindowResize);
+  private onCanvasWheel(event: WheelEvent) {
+    if (!this.canvasContainer) {
       return;
     }
 
-    this.resizeObserver = new ResizeObserver(() => {
-      this.updateCanvasScale();
-    });
-
-    if (this.canvasContainer) {
-      this.resizeObserver.observe(this.canvasContainer.nativeElement);
+    // Avoid hijacking browser zoom when modifier keys are pressed
+    if (event.ctrlKey || event.metaKey) {
+      return;
     }
+
+    event.preventDefault();
+
+    const containerEl = this.canvasContainer.nativeElement;
+    const previousScale = this.scale;
+    const zoomMultiplier = event.deltaY < 0 ? 1 + this.zoomStep : 1 / (1 + this.zoomStep);
+  this.updateScale(previousScale * zoomMultiplier);
+
+    const scaleRatio = this.scale / previousScale;
+
+    if (scaleRatio === 1) {
+      return;
+    }
+
+    const containerRect = containerEl.getBoundingClientRect();
+    const offsetX = event.clientX - containerRect.left + containerEl.scrollLeft;
+    const offsetY = event.clientY - containerRect.top + containerEl.scrollTop;
+
+    containerEl.scrollLeft = offsetX * scaleRatio - (event.clientX - containerRect.left);
+    containerEl.scrollTop = offsetY * scaleRatio - (event.clientY - containerRect.top);
   }
 
-  private updateCanvasScale() {
-    if (!this.canvasContainer) return;
+  private updateScale(nextScale: number) {
+    const clamped = Math.min(this.maxScale, Math.max(this.minScale, nextScale));
 
-    const container = this.canvasContainer.nativeElement;
-    const availableWidth = container.clientWidth;
-    const availableHeight = container.clientHeight;
+    if (!isFinite(clamped) || clamped <= 0) {
+      return;
+    }
 
-    if (!availableWidth || !availableHeight) return;
+    if (Math.abs(clamped - this.scale) < 0.0001) {
+      return;
+    }
 
-    const widthScale = availableWidth / this.targetWidth;
-    const heightScale = availableHeight / this.targetHeight;
-    const newScale = Math.min(widthScale, heightScale, 1);
-
-    if (!isFinite(newScale) || newScale <= 0) return;
-
-    if (Math.abs(newScale - this.scale) < 0.0001) return;
-
-    this.scale = newScale;
-    this.canvasWidth = this.targetWidth * this.scale;
-    this.canvasHeight = this.targetHeight * this.scale;
+    this.scale = clamped;
   }
 
   onCanvasClick(event: MouseEvent) {

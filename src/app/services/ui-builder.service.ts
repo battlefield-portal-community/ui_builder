@@ -1,5 +1,13 @@
 import { Injectable, signal } from '@angular/core';
-import { UIElement, UIElementTypes, DEFAULT_UI_PARAMS, UIAnchor } from '../../models/types';
+import { UIElement, UIElementTypes, DEFAULT_UI_PARAMS, UIAnchor, UIParams, UIBgFill, UIImageType } from '../../models/types';
+
+export interface UIExportArtifacts {
+  params: UIParams[];
+  paramsJson: string;
+  strings: Record<string, string>;
+  stringsJson: string;
+  typescriptCode: string;
+}
 
 @Injectable({
   providedIn: 'root'
@@ -13,7 +21,7 @@ export class UiBuilderService {
   readonly elements = this._elements.asReadonly();
   readonly selectedElementId = this._selectedElementId.asReadonly();
 
-  constructor() {}
+  constructor() { }
 
   // Generate unique ID
   private generateId(): string {
@@ -36,7 +44,7 @@ export class UiBuilderService {
   addElement(type: UIElementTypes, name?: string): void {
     const newElement = this.createUIElement(type, name);
     const selectedId = this._selectedElementId();
-    
+
     if (selectedId) {
       // Add to selected element
       this.addElementToParent(newElement, selectedId);
@@ -44,7 +52,7 @@ export class UiBuilderService {
       // Add to root
       this._elements.update(elements => [...elements, newElement]);
     }
-    
+
     // Select the newly added element
     this._selectedElementId.set(newElement.id);
   }
@@ -121,7 +129,7 @@ export class UiBuilderService {
     this._elements.update(elements => {
       return this.removeElementRecursive(elements, elementId);
     });
-    
+
     // Clear selection if removed element was selected
     if (this._selectedElementId() === elementId) {
       this._selectedElementId.set(null);
@@ -209,18 +217,26 @@ export class UiBuilderService {
     return { elements: moved ? updated : elements, moved };
   }
 
-  // Export to JSON
-  exportToJson(): string {
-    const convertToUIParams = (element: UIElement): any => {
-      const { id, ...params } = element;
-      return {
-        ...params,
-        children: element.children?.map(child => convertToUIParams(child)) || []
-      };
-    };
+  generateExportArtifacts(): UIExportArtifacts {
+    const elements = this._elements();
+    const params = elements.map(element => this.serializeElement(element));
+    const paramsJson = JSON.stringify(params, null, 2);
+    const strings = this.collectTextStrings(elements);
+    const stringsJson = Object.keys(strings).length ? JSON.stringify(strings, null, 2) : '{}';
+    const typescriptCode = this.buildTypescriptCode(params, strings);
 
-    const exportData = this._elements().map(element => convertToUIParams(element));
-    return JSON.stringify(exportData, null, 2);
+    return {
+      params,
+      paramsJson,
+      strings,
+      stringsJson,
+      typescriptCode,
+    };
+  }
+
+  // Legacy support for existing callers expecting raw JSON
+  exportToJson(): string {
+    return this.generateExportArtifacts().paramsJson;
   }
 
   // Clear all elements
@@ -228,5 +244,196 @@ export class UiBuilderService {
     this._elements.set([]);
     this._selectedElementId.set(null);
     this._nextId = 1;
+  }
+
+  private serializeElement(element: UIElement): UIParams {
+    const { id, children = [], ...rest } = element;
+    const serializedChildren = children.map(child => this.serializeElement(child));
+
+    return {
+      ...(rest as UIParams),
+      children: serializedChildren,
+    };
+  }
+
+  private collectTextStrings(elements: UIElement[]): Record<string, string> {
+    const strings: Record<string, string> = {};
+
+    const traverse = (nodes: UIElement[]) => {
+      for (const node of nodes) {
+        if (node.type === 'Text') {
+          const text = (node.textLabel ?? '').trim();
+          if (text.length > 0) {
+            const key = node.name || node.id;
+            if (!(key in strings)) {
+              strings[key] = text;
+            }
+          }
+        }
+
+        if (node.children?.length) {
+          traverse(node.children);
+        }
+      }
+    };
+
+    traverse(elements);
+
+    return strings;
+  }
+
+  private buildTypescriptCode(params: UIParams[], strings: Record<string, string>): string {
+    const codeLines: string[] = [
+      '/**',
+      ' * Auto-generated UI script.',
+      ' * Ensure to import the modlib utilities and supporting enums.',
+      " * Don't forget to replace placeholders as necessary.",
+      ' */',
+      "// import * as modlib from 'modlib';",
+      "// import { UIAnchor, UIBgFill, UIImageType } from 'modlib';",
+      '',
+      'export const widget = modlib.ParseUI(',
+    ];
+
+    if (params.length) {
+      params.forEach((param, index) => {
+        const isLast = index === params.length - 1;
+        const serialized = this.serializeParamToTypescript(param, 1, strings);
+        if (isLast) {
+          codeLines.push(serialized);
+        } else {
+          const lines = serialized.split('\n');
+          lines[lines.length - 1] = `${lines[lines.length - 1]},`;
+          codeLines.push(lines.join('\n'));
+          codeLines.push('');
+        }
+      });
+    } else {
+      codeLines.push('  // No UI elements defined');
+    }
+
+    codeLines.push(');');
+    codeLines.push('');
+
+    return codeLines.join('\n');
+  }
+
+  private serializeParamToTypescript(param: UIParams, indentLevel = 0, strings: Record<string, string>): string {
+    const indent = '  '.repeat(indentLevel);
+    const propIndent = '  '.repeat(indentLevel + 1);
+    const children = param.children ?? [];
+
+    const propertyBlocks: string[][] = [];
+    const pushLine = (line: string) => propertyBlocks.push([line]);
+
+    pushLine(`${propIndent}type: ${this.formatString(param.type)}`);
+    pushLine(`${propIndent}name: ${this.formatString(param.name)}`);
+    pushLine(`${propIndent}position: ${this.formatNumberArray(param.position)}`);
+    pushLine(`${propIndent}size: ${this.formatNumberArray(param.size)}`);
+    pushLine(`${propIndent}anchor: ${this.formatEnumValue('UIAnchor', UIAnchor, param.anchor)}`);
+    pushLine(`${propIndent}visible: ${this.formatBoolean(param.visible)}`);
+    pushLine(`${propIndent}textLabel: ${this.formatTextLabel(param, strings)}`);
+    pushLine(`${propIndent}textColor: ${this.formatNumberArray(param.textColor)}`);
+    pushLine(`${propIndent}textAlpha: ${this.formatNumber(param.textAlpha)}`);
+    pushLine(`${propIndent}textSize: ${this.formatNumber(param.textSize)}`);
+    pushLine(`${propIndent}textAnchor: ${this.formatEnumValue('UIAnchor', UIAnchor, param.textAnchor)}`);
+    pushLine(`${propIndent}padding: ${this.formatNumber(param.padding)}`);
+    pushLine(`${propIndent}bgColor: ${this.formatNumberArray(param.bgColor)}`);
+    pushLine(`${propIndent}bgAlpha: ${this.formatNumber(param.bgAlpha)}`);
+    pushLine(`${propIndent}bgFill: ${this.formatEnumValue('UIBgFill', UIBgFill, param.bgFill)}`);
+    pushLine(`${propIndent}imageType: ${this.formatEnumValue('UIImageType', UIImageType, param.imageType)}`);
+    pushLine(`${propIndent}imageColor: ${this.formatNumberArray(param.imageColor)}`);
+    pushLine(`${propIndent}imageAlpha: ${this.formatNumber(param.imageAlpha)}`);
+    pushLine(`${propIndent}buttonEnabled: ${this.formatBoolean(param.buttonEnabled)}`);
+
+    if (param.buttonEnabled) {
+      pushLine(`${propIndent}buttonColorBase: ${this.formatNumberArray(param.buttonColorBase)}`);
+      pushLine(`${propIndent}buttonAlphaBase: ${this.formatNumber(param.buttonAlphaBase)}`);
+      pushLine(`${propIndent}buttonColorDisabled: ${this.formatNumberArray(param.buttonColorDisabled)}`);
+      pushLine(`${propIndent}buttonAlphaDisabled: ${this.formatNumber(param.buttonAlphaDisabled)}`);
+      pushLine(`${propIndent}buttonColorPressed: ${this.formatNumberArray(param.buttonColorPressed)}`);
+      pushLine(`${propIndent}buttonAlphaPressed: ${this.formatNumber(param.buttonAlphaPressed)}`);
+      pushLine(`${propIndent}buttonColorHover: ${this.formatNumberArray(param.buttonColorHover)}`);
+      pushLine(`${propIndent}buttonAlphaHover: ${this.formatNumber(param.buttonAlphaHover)}`);
+      pushLine(`${propIndent}buttonColorFocused: ${this.formatNumberArray(param.buttonColorFocused)}`);
+      pushLine(`${propIndent}buttonAlphaFocused: ${this.formatNumber(param.buttonAlphaFocused)}`);
+    }
+
+    if (children.length) {
+      const childBlock: string[] = [`${propIndent}children: [`];
+      children.forEach((child, index) => {
+        let childString = this.serializeParamToTypescript(child, indentLevel + 2, strings);
+        const childLines = childString.split('\n');
+        if (index < children.length - 1) {
+          childLines[childLines.length - 1] = `${childLines[childLines.length - 1]},`;
+        }
+        childBlock.push(...childLines);
+      });
+      childBlock.push(`${propIndent}]`);
+      propertyBlocks.push(childBlock);
+    }
+
+    const lines: string[] = [`${indent}{`];
+    propertyBlocks.forEach((block, index) => {
+      const blockLines = [...block];
+      if (index < propertyBlocks.length - 1) {
+        const lastLineIndex = blockLines.length - 1;
+        blockLines[lastLineIndex] = `${blockLines[lastLineIndex]},`;
+      }
+      lines.push(...blockLines);
+    });
+    lines.push(`${indent}}`);
+
+    return lines.join('\n');
+  }
+
+  private formatString(value: string | null | undefined): string {
+    return JSON.stringify(value ?? '');
+  }
+
+  private formatBoolean(value: boolean): string {
+    return value ? 'true' : 'false';
+  }
+
+  private formatNumberArray(values: number[] | null | undefined): string {
+    if (!Array.isArray(values) || values.length === 0) {
+      return '[]';
+    }
+    return `[${values.map(v => this.formatNumber(v)).join(', ')}]`;
+  }
+
+  private formatNumber(value: number | null | undefined): string {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      if (Number.isInteger(value)) {
+        return value.toString();
+      }
+      const trimmed = Number(value.toFixed(4));
+      return trimmed.toString();
+    }
+    return '0';
+  }
+
+  private formatEnumValue(enumName: string, enumRef: any, value: number): string {
+    const enumKey = enumRef[value];
+    if (typeof enumKey === 'string') {
+      return `${enumName}.${enumKey}`;
+    }
+    return value.toString();
+  }
+
+  private formatTextLabel(param: UIParams, strings: Record<string, string>): string {
+    const key = this.getLocalizationKey(param, strings);
+    if (key) {
+      return `mod.${key}`;
+    }
+    return this.formatString(param.textLabel ?? '');
+  }
+
+  private getLocalizationKey(param: UIParams, strings: Record<string, string>): string | null {
+    const candidate = param.name?.trim();
+    if (candidate && Object.prototype.hasOwnProperty.call(strings, candidate)) {
+      return candidate;
+    }
+    return null;
   }
 }

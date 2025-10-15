@@ -7,7 +7,7 @@
     (click)="onCanvasClick($event)"
   >
     <div class="screen-indicator">
-      1920x1080
+      1920x1080 · {{ scalePercent }}%
     </div>
     @for (element of elements(); track element.id) {
       <div 
