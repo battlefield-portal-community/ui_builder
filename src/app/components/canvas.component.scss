@@ -1,0 +1,156 @@
+.canvas-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #1a1a1a;
+  padding: 20px;
+  overflow: auto;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.canvas {
+  position: relative;
+  background: #2a2a2a;
+  border: 2px solid #444;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  user-select: none;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.screen-indicator {
+  position: absolute;
+  top: -30px;
+  left: 0;
+  color: #888;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.ui-element {
+  position: absolute;
+  border: 1px solid transparent;
+  cursor: move;
+  box-sizing: border-box;
+  min-height: 20px;
+  min-width: 20px;
+  user-select: none;
+  transition: opacity 0.1s ease, transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.ui-element:hover {
+  border-color: #4a9eff;
+}
+
+.ui-element.selected {
+  border-color: #ff6b35;
+  border-width: 2px;
+  outline: 1px solid #ff6b35;
+  outline-offset: 1px;
+}
+
+.ui-element.dragging {
+  opacity: 0.8;
+  z-index: 1000;
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.element-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.container-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #888;
+  opacity: 0.8;
+  border-radius: 2px;
+}
+
+.text-content {
+  font-size: 14px;
+  color: white;
+  pointer-events: none;
+}
+
+.image-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed #666;
+  border-radius: 2px;
+}
+
+.image-placeholder {
+  color: #888;
+  font-size: 10px;
+}
+
+.button-content {
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 12px;
+  pointer-events: none;
+}
+
+/* Child elements are positioned relative to their parent */
+
+/* Resize handles */
+.resize-handle {
+  position: absolute;
+  background: #ff6b35;
+  border: 1px solid #fff;
+  z-index: 1001;
+  opacity: 0.8;
+  
+  &:hover {
+    opacity: 1;
+    background: #ff8659;
+  }
+}
+
+.resize-handle-right {
+  width: 8px;
+  height: 20px;
+  right: -4px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: ew-resize;
+}
+
+.resize-handle-bottom {
+  width: 20px;
+  height: 8px;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: ns-resize;
+}
+
+.resize-handle-corner {
+  width: 12px;
+  height: 12px;
+  right: -6px;
+  bottom: -6px;
+  cursor: nw-resize;
+  border-radius: 2px;
+}

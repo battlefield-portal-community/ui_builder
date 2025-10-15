@@ -1,0 +1,95 @@
+<div class="side-menu">
+  <div class="menu-header">
+    <h3>UI Builder</h3>
+  </div>
+
+  <!-- Add Element Section -->
+  <div class="menu-section">
+    <h4>Add Element</h4>
+    <div class="element-types">
+      @for (type of elementTypes; track type) {
+        <button 
+          class="element-type-btn"
+          (click)="addElement(type)"
+          [title]="'Add ' + type + (selectedElement() ? ' to ' + selectedElement()?.name : ' to root')"
+        >
+          <span class="element-icon">{{getElementIcon(type)}}</span>
+          <span class="element-label">{{type}}</span>
+        </button>
+      }
+    </div>
+    <div class="add-info">
+      @if (selectedElement(); as selected) {
+        <span class="add-target">Adding to: <strong>{{selected.name}}</strong></span>
+      } @else {
+        <span class="add-target">Adding to: <strong>Root</strong></span>
+      }
+    </div>
+  </div>
+
+  <!-- Element Hierarchy -->
+  <div class="menu-section">
+    <h4>Element Hierarchy</h4>
+    <div class="element-tree">
+      @if (elements().length === 0) {
+        <div class="empty-state">No elements yet</div>
+      } @else {
+        @for (item of getFlattenedElements(); track item.element.id) {
+          <div class="tree-element" [class.selected]="item.element.id === selectedElementId()">
+            <div 
+              class="element-item"
+              (click)="selectElement(item.element.id)"
+              [style.padding-left.px]="item.level * 20"
+            >
+              <span class="child-indicator">{{getIndentIndicator(item.level)}}</span>
+              <span class="element-icon">{{getElementIcon(item.element.type)}}</span>
+              <span class="element-name">{{item.element.name}}</span>
+              <div class="element-actions">
+                <button
+                  class="action-btn move-btn"
+                  (click)="moveElement($event, item.element.id, 'up')"
+                  [disabled]="!canMove(item.element, 'up')"
+                  title="Move up"
+                >⬆️</button>
+                <button
+                  class="action-btn move-btn"
+                  (click)="moveElement($event, item.element.id, 'down')"
+                  [disabled]="!canMove(item.element, 'down')"
+                  title="Move down"
+                >⬇️</button>
+                <button 
+                  class="action-btn delete-btn"
+                  (click)="deleteElement($event, item.element.id)"
+                  title="Delete element"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="menu-section">
+    <h4>Actions</h4>
+    <div class="actions">
+      <button 
+        class="action-button export-btn"
+        (click)="exportJson()"
+        [disabled]="elements().length === 0"
+      >
+        📄 Export JSON
+      </button>
+      <button 
+        class="action-button clear-btn"
+        (click)="clearAll()"
+        [disabled]="elements().length === 0"
+      >
+        🗑️ Clear All
+      </button>
+    </div>
+  </div>
+</div>

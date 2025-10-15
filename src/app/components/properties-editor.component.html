@@ -1,0 +1,382 @@
+<div class="properties-editor">
+  <div class="editor-header">
+    <h3>Properties</h3>
+  </div>
+
+  @if (selectedElement(); as element) {
+    <div class="properties-content">
+      <!-- Basic Properties -->
+      <div class="property-group">
+        <h4>Basic</h4>
+        
+        <div class="property-row">
+          <label>Name:</label>
+          <input 
+            type="text" 
+            [value]="element.name"
+            (input)="updateProperty('name', $event)"
+            placeholder="Element name"
+          />
+        </div>
+        
+        <div class="property-row">
+          <label>Type:</label>
+          <span class="readonly-value">{{element.type}}</span>
+        </div>
+        
+        <div class="property-row">
+          <label>Visible:</label>
+          <input 
+            type="checkbox" 
+            [checked]="element.visible"
+            (change)="updateProperty('visible', $event)"
+          />
+        </div>
+      </div>
+
+      <!-- Position & Size -->
+      <div class="property-group">
+        <h4>Position & Size</h4>
+        
+        <div class="property-row">
+          <label>Position:</label>
+          <div class="vector-input">
+            <input 
+              type="number" 
+              [value]="element.position[0]"
+              (input)="updateVectorProperty('position', 0, $event)"
+              placeholder="X"
+            />
+            <input 
+              type="number" 
+              [value]="element.position[1]"
+              (input)="updateVectorProperty('position', 1, $event)"
+              placeholder="Y"
+            />
+          </div>
+        </div>
+        
+        <div class="property-row">
+          <label>Size:</label>
+          <div class="vector-input">
+            <input 
+              type="number" 
+              [value]="element.size[0]"
+              (input)="updateVectorProperty('size', 0, $event)"
+              placeholder="Width"
+              min="1"
+            />
+            <input 
+              type="number" 
+              [value]="element.size[1]"
+              (input)="updateVectorProperty('size', 1, $event)"
+              placeholder="Height"
+              min="1"
+            />
+          </div>
+        </div>
+        
+        <div class="property-row">
+          <label>Anchor:</label>
+          <select 
+            [value]="element.anchor"
+            (change)="updateProperty('anchor', $event)"
+          >
+            @for (anchor of anchorOptions; track anchor.value) {
+              <option [value]="anchor.value">{{anchor.label}}</option>
+            }
+          </select>
+        </div>
+        
+        <div class="property-row">
+          <label>Padding:</label>
+          <input 
+            type="number" 
+            [value]="element.padding"
+            (input)="updateProperty('padding', $event)"
+            min="0"
+          />
+        </div>
+      </div>
+
+      <!-- Text Properties -->
+      @if (element.type === 'Text' || element.type === 'Button') {
+        <div class="property-group">
+          <h4>Text</h4>
+          
+          <div class="property-row">
+            <label>Text Label:</label>
+            <input 
+              type="text" 
+              [value]="element.textLabel"
+              (input)="updateProperty('textLabel', $event)"
+              placeholder="Enter text"
+            />
+          </div>
+          
+          <div class="property-row">
+            <label>Text Size:</label>
+            <input 
+              type="number" 
+              [value]="element.textSize"
+              (input)="updateProperty('textSize', $event)"
+              min="1"
+            />
+          </div>
+          
+          <div class="property-row">
+            <label>Text Color:</label>
+            <div class="color-input">
+              <div class="vector-input">
+                <input 
+                  type="number" 
+                  [value]="element.textColor[0]"
+                  (input)="updateVectorProperty('textColor', 0, $event)"
+                  placeholder="R"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+                <input 
+                  type="number" 
+                  [value]="element.textColor[1]"
+                  (input)="updateVectorProperty('textColor', 1, $event)"
+                  placeholder="G"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+                <input 
+                  type="number" 
+                  [value]="element.textColor[2]"
+                  (input)="updateVectorProperty('textColor', 2, $event)"
+                  placeholder="B"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+              </div>
+              <div class="color-preview" [style.background-color]="getColorPreview(element.textColor)"></div>
+            </div>
+          </div>
+          
+          <div class="property-row">
+            <label>Text Alpha:</label>
+            <input 
+              type="number" 
+              [value]="element.textAlpha"
+              (input)="updateProperty('textAlpha', $event)"
+              min="0"
+              max="1"
+              step="0.1"
+            />
+          </div>
+          
+          <div class="property-row">
+            <label>Text Anchor:</label>
+            <select 
+              [value]="element.textAnchor"
+              (change)="updateProperty('textAnchor', $event)"
+            >
+              @for (anchor of anchorOptions; track anchor.value) {
+                <option [value]="anchor.value">{{anchor.label}}</option>
+              }
+            </select>
+          </div>
+        </div>
+      }
+
+      <!-- Background Properties -->
+      @if (element.type !== 'Text') {
+        <div class="property-group">
+          <h4>Background</h4>
+          
+          <div class="property-row">
+            <label>Background Color:</label>
+            <div class="color-input">
+              <div class="vector-input">
+                <input 
+                  type="number" 
+                  [value]="element.bgColor[0]"
+                  (input)="updateVectorProperty('bgColor', 0, $event)"
+                  placeholder="R"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+                <input 
+                  type="number" 
+                  [value]="element.bgColor[1]"
+                  (input)="updateVectorProperty('bgColor', 1, $event)"
+                  placeholder="G"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+                <input 
+                  type="number" 
+                  [value]="element.bgColor[2]"
+                  (input)="updateVectorProperty('bgColor', 2, $event)"
+                  placeholder="B"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+              </div>
+              <div class="color-preview" [style.background-color]="getColorPreview(element.bgColor)"></div>
+            </div>
+          </div>
+          
+          <div class="property-row">
+            <label>Background Alpha:</label>
+            <input 
+              type="number" 
+              [value]="element.bgAlpha"
+              (input)="updateProperty('bgAlpha', $event)"
+              min="0"
+              max="1"
+              step="0.1"
+            />
+          </div>
+          
+          <div class="property-row">
+            <label>Background Fill:</label>
+            <select 
+              [value]="element.bgFill"
+              (change)="updateProperty('bgFill', $event)"
+            >
+              @for (fill of bgFillOptions; track fill.value) {
+                <option [value]="fill.value">{{fill.label}}</option>
+              }
+            </select>
+          </div>
+        </div>
+      }
+
+      <!-- Image Properties -->
+      @if (element.type === 'Image') {
+        <div class="property-group">
+          <h4>Image</h4>
+          
+          <div class="property-row">
+            <label>Image Type:</label>
+            <select 
+              [value]="element.imageType"
+              (change)="updateProperty('imageType', $event)"
+            >
+              @for (imageType of imageTypeOptions; track imageType.value) {
+                <option [value]="imageType.value">{{imageType.label}}</option>
+              }
+            </select>
+          </div>
+          
+          <div class="property-row">
+            <label>Image Color:</label>
+            <div class="color-input">
+              <div class="vector-input">
+                <input 
+                  type="number" 
+                  [value]="element.imageColor[0]"
+                  (input)="updateVectorProperty('imageColor', 0, $event)"
+                  placeholder="R"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+                <input 
+                  type="number" 
+                  [value]="element.imageColor[1]"
+                  (input)="updateVectorProperty('imageColor', 1, $event)"
+                  placeholder="G"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+                <input 
+                  type="number" 
+                  [value]="element.imageColor[2]"
+                  (input)="updateVectorProperty('imageColor', 2, $event)"
+                  placeholder="B"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+              </div>
+              <div class="color-preview" [style.background-color]="getColorPreview(element.imageColor)"></div>
+            </div>
+          </div>
+          
+          <div class="property-row">
+            <label>Image Alpha:</label>
+            <input 
+              type="number" 
+              [value]="element.imageAlpha"
+              (input)="updateProperty('imageAlpha', $event)"
+              min="0"
+              max="1"
+              step="0.1"
+            />
+          </div>
+        </div>
+      }
+
+      <!-- Button Properties -->
+      @if (element.type === 'Button') {
+        <div class="property-group">
+          <h4>Button</h4>
+          
+          <div class="property-row">
+            <label>Enabled:</label>
+            <input 
+              type="checkbox" 
+              [checked]="element.buttonEnabled"
+              (change)="updateProperty('buttonEnabled', $event)"
+            />
+          </div>
+          
+          <div class="property-row">
+            <label>Base Color:</label>
+            <div class="color-input">
+              <div class="vector-input">
+                <input 
+                  type="number" 
+                  [value]="element.buttonColorBase[0]"
+                  (input)="updateVectorProperty('buttonColorBase', 0, $event)"
+                  placeholder="R"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+                <input 
+                  type="number" 
+                  [value]="element.buttonColorBase[1]"
+                  (input)="updateVectorProperty('buttonColorBase', 1, $event)"
+                  placeholder="G"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+                <input 
+                  type="number" 
+                  [value]="element.buttonColorBase[2]"
+                  (input)="updateVectorProperty('buttonColorBase', 2, $event)"
+                  placeholder="B"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                />
+              </div>
+              <div class="color-preview" [style.background-color]="getColorPreview(element.buttonColorBase)"></div>
+            </div>
+          </div>
+          
+          <!-- Additional button states could be added here -->
+        </div>
+      }
+    </div>
+  } @else {
+    <div class="no-selection">
+      <p>Select an element to edit its properties</p>
+    </div>
+  }
+</div>

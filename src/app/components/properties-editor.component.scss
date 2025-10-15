@@ -1,0 +1,120 @@
+.properties-editor {
+  width: 320px;
+  background: #2a2a2a;
+  border-left: 1px solid #444;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.editor-header {
+  padding: 20px;
+  border-bottom: 1px solid #444;
+}
+
+.editor-header h3 {
+  margin: 0;
+  color: #fff;
+  font-size: 18px;
+}
+
+.properties-content {
+  padding: 20px;
+}
+
+.property-group {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.property-group:last-child {
+  border-bottom: none;
+}
+
+.property-group h4 {
+  margin: 0 0 12px 0;
+  color: #4a9eff;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.property-row {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.property-row label {
+  color: #ccc;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.property-row input,
+.property-row select {
+  background: #3a3a3a;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.property-row input:focus,
+.property-row select:focus {
+  outline: none;
+  border-color: #4a9eff;
+}
+
+.property-row input[type="checkbox"] {
+  width: auto;
+  margin: 0;
+}
+
+.readonly-value {
+  color: #888;
+  font-style: italic;
+  padding: 8px 0;
+}
+
+.vector-input {
+  display: flex;
+  gap: 8px;
+}
+
+.vector-input input {
+  flex: 1;
+  min-width: 0;
+}
+
+.color-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-input .vector-input {
+  flex: 1;
+}
+
+.color-preview {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid #555;
+  flex-shrink: 0;
+}
+
+.no-selection {
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.no-selection p {
+  color: #666;
+  font-style: italic;
+  margin: 0;
+}

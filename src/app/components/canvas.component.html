@@ -1,0 +1,105 @@
+<div #canvasContainer class="canvas-container">
+  <div 
+    #canvas 
+    class="canvas" 
+    [style.width.px]="canvasWidth"
+    [style.height.px]="canvasHeight"
+    (click)="onCanvasClick($event)"
+  >
+    <div class="screen-indicator">
+      1920x1080
+    </div>
+    @for (element of elements(); track element.id) {
+      <div 
+        class="ui-element"
+        [class.selected]="element.id === selectedElementId()"
+        [class.dragging]="isDragging && dragElement?.id === element.id"
+        [style]="getElementStyle(element)"
+        (click)="onElementClick($event, element.id)"
+        (mousedown)="onElementMouseDown($event, element.id)"
+      >
+        <div class="element-content">
+          @switch (element.type) {
+            @case ('Container') {
+              <div class="container-content" [style]="getBackgroundStyle(element)">
+                {{element.name}}
+              </div>
+            }
+            @case ('Text') {
+              <div class="text-content" [style]="getTextStyle(element)">
+                {{element.textLabel || element.name}}
+              </div>
+            }
+            @case ('Image') {
+              <div class="image-content" [style]="getImageStyle(element)">
+                <span class="image-placeholder">{{element.imageType}}</span>
+              </div>
+            }
+            @case ('Button') {
+              <button class="button-content" [style]="getButtonStyle(element)">
+                {{element.textLabel || element.name}}
+              </button>
+            }
+          }
+        </div>
+        
+        <!-- Resize handles for selected elements -->
+        @if (element.id === selectedElementId()) {
+          <div class="resize-handle resize-handle-right" 
+               (mousedown)="onResizeStart($event, element.id, 'right')"></div>
+          <div class="resize-handle resize-handle-bottom" 
+               (mousedown)="onResizeStart($event, element.id, 'bottom')"></div>
+          <div class="resize-handle resize-handle-corner" 
+               (mousedown)="onResizeStart($event, element.id, 'corner')"></div>
+        }
+        
+        <!-- Child elements -->
+        @for (child of element.children; track child.id) {
+          <div 
+            class="ui-element child-element"
+            [class.selected]="child.id === selectedElementId()"
+            [class.dragging]="isDragging && dragElement?.id === child.id"
+            [style]="getElementStyle(child, element)"
+            (click)="onElementClick($event, child.id)"
+            (mousedown)="onElementMouseDown($event, child.id)"
+          >
+            <div class="element-content">
+              @switch (child.type) {
+                @case ('Container') {
+                  <div class="container-content" [style]="getBackgroundStyle(child)">
+                    {{child.name}}
+                  </div>
+                }
+                @case ('Text') {
+                  <div class="text-content" [style]="getTextStyle(child)">
+                    {{child.textLabel || child.name}}
+                  </div>
+                }
+                @case ('Image') {
+                  <div class="image-content" [style]="getImageStyle(child)">
+                    <span class="image-placeholder">{{child.imageType}}</span>
+                  </div>
+                }
+                @case ('Button') {
+                  <button class="button-content" [style]="getButtonStyle(child)">
+                    {{child.textLabel || child.name}}
+                  </button>
+                }
+              }
+            </div>
+            
+            <!-- Resize handles for selected child elements -->
+            @if (child.id === selectedElementId()) {
+              <div class="resize-handle resize-handle-right" 
+                   (mousedown)="onResizeStart($event, child.id, 'right')"></div>
+              <div class="resize-handle resize-handle-bottom" 
+                   (mousedown)="onResizeStart($event, child.id, 'bottom')"></div>
+              <div class="resize-handle resize-handle-corner" 
+                   (mousedown)="onResizeStart($event, child.id, 'corner')"></div>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+</div>
