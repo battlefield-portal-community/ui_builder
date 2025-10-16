@@ -51,6 +51,15 @@ npm run start
 ```
 Open `http://localhost:4200/` in your browser.
 
+### Run with Docker
+
+```powershell
+docker build -t bf-ui-builder .
+docker run --rm -p 8080:80 bf-ui-builder
+```
+
+Then navigate to `http://localhost:8080/`.
+
 ## 🧭 Using the builder
 
 | Area | What it does |
