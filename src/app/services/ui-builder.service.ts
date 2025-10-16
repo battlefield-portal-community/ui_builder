@@ -740,7 +740,7 @@ export class UiBuilderService {
   private formatEnumValue(enumName: string, enumRef: any, value: number): string {
     const enumKey = enumRef[value];
     if (typeof enumKey === 'string') {
-      return `${enumName}.${enumKey}`;
+      return `mod.${enumName}.${enumKey}`;
     }
     return value.toString();
   }
