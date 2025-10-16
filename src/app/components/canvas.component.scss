@@ -26,6 +26,29 @@
   user-select: none;
 }
 
+.snap-guides {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1500;
+}
+
+.snap-guide {
+  position: absolute;
+  background: rgba(77, 163, 255, 0.8);
+  box-shadow: 0 0 8px rgba(77, 163, 255, 0.4);
+}
+
+.snap-guide-vertical {
+  top: 0;
+  width: 1px;
+}
+
+.snap-guide-horizontal {
+  left: 0;
+  height: 1px;
+}
+
 .screen-indicator {
   position: absolute;
   top: -30px;

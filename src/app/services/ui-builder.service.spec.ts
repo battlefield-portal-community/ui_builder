@@ -1,4 +1,5 @@
 import { UiBuilderService } from './ui-builder.service';
+import { UIAnchor } from '../../models/types';
 
 describe('UiBuilderService', () => {
   let service: UiBuilderService;
@@ -13,6 +14,16 @@ describe('UiBuilderService', () => {
 
     const url = service.canvasBackgroundImageUrl();
     expect(url).toBe(service.defaultCanvasBackgroundImage.url);
+  });
+
+  it('should generate default names with random 5-character suffix', () => {
+    const element = service.createUIElement('Container');
+    expect(element.name).toMatch(/^Container_[A-Z0-9]{5}$/);
+
+    service.addElement('Text');
+    const selected = service.getSelectedElement();
+    expect(selected).toBeTruthy();
+    expect(selected!.name).toMatch(/^Text_[A-Z0-9]{5}$/);
   });
 
   it('should allow registering custom backgrounds and keep selection when switching modes', () => {
@@ -95,5 +106,60 @@ describe('UiBuilderService', () => {
     expect(artifacts.typescriptCode).toContain('buttonEnabled: true');
     expect(artifacts.typescriptCode).toContain('buttonColorBase: [1, 0, 0]');
     expect(artifacts.typescriptCode).toContain('buttonAlphaBase: 1');
+  });
+
+  it('should default snap-to-elements to true and allow toggling', () => {
+    expect(service.snapToElements()).toBeTrue();
+
+    service.setSnapToElements(false);
+    expect(service.snapToElements()).toBeFalse();
+
+    service.toggleSnapToElements();
+    expect(service.snapToElements()).toBeTrue();
+  });
+
+  it('should compute absolute element bounds with hierarchy and anchors', () => {
+    service.addElement('Container', 'RootContainer');
+    const parentId = service.selectedElementId();
+    expect(parentId).toBeTruthy();
+
+    service.updateElement(parentId!, {
+      position: [100, 120],
+      size: [200, 300],
+      anchor: UIAnchor.TopLeft,
+    });
+
+    service.selectElement(parentId!);
+    service.addElement('Text', 'ChildText');
+    const childId = service.selectedElementId();
+    expect(childId).toBeTruthy();
+
+    service.updateElement(childId!, {
+      position: [0, 0],
+      size: [50, 50],
+      anchor: UIAnchor.Center,
+    });
+
+    const allBounds = service.elementBounds();
+    expect(allBounds.length).toBe(2);
+
+    const parentBounds = service.getElementBounds(parentId!);
+    const childBounds = service.getElementBounds(childId!);
+
+    expect(parentBounds).toBeTruthy();
+    expect(parentBounds!.parentId).toBeNull();
+    expect(parentBounds!.rect.left).toBe(100);
+    expect(parentBounds!.rect.top).toBe(120);
+    expect(parentBounds!.rect.width).toBe(200);
+    expect(parentBounds!.rect.height).toBe(300);
+
+    expect(childBounds).toBeTruthy();
+    expect(childBounds!.parentId).toBe(parentId);
+    expect(childBounds!.rect.width).toBe(50);
+    expect(childBounds!.rect.height).toBe(50);
+    expect(childBounds!.rect.left).toBe(175);
+    expect(childBounds!.rect.top).toBe(245);
+    expect(childBounds!.rect.centerX).toBe(200);
+    expect(childBounds!.rect.centerY).toBe(270);
   });
 });

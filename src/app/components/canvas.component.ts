@@ -1,6 +1,6 @@
-import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, computed } from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, computed, signal } from '@angular/core';
 import { UiBuilderService } from '../services/ui-builder.service';
-import { UIElement, UIAnchor } from '../../models/types';
+import { UIElement, UIAnchor, CANVAS_WIDTH, CANVAS_HEIGHT, UIRect } from '../../models/types';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -15,19 +15,29 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: false }) canvasElement!: ElementRef<HTMLDivElement>;
 
   // Canvas dimensions (scaled down from 1920x1080)
-  private readonly targetWidth = 1920;
-  private readonly targetHeight = 1080;
   private scale = 0.5; // Scale factor for display
   private readonly minScale = 0.25;
   private readonly maxScale = 2;
   private readonly zoomStep = 0.15;
+  private readonly snapThreshold = 8;
+  private readonly canvasRect: UIRect = {
+    left: 0,
+    top: 0,
+    right: CANVAS_WIDTH,
+    bottom: CANVAS_HEIGHT,
+    width: CANVAS_WIDTH,
+    height: CANVAS_HEIGHT,
+    centerX: CANVAS_WIDTH / 2,
+    centerY: CANVAS_HEIGHT / 2,
+  };
+  readonly snapGuides = signal<{ vertical: number[]; horizontal: number[] }>({ vertical: [], horizontal: [] });
 
   get canvasWidth(): number {
-    return this.targetWidth * this.scale;
+    return CANVAS_WIDTH * this.scale;
   }
 
   get canvasHeight(): number {
-    return this.targetHeight * this.scale;
+    return CANVAS_HEIGHT * this.scale;
   }
 
   get scalePercent(): number {
@@ -229,16 +239,21 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     const mouseGameX = (event.clientX - canvasRect.left) / this.scale;
     const mouseGameY = (event.clientY - canvasRect.top) / this.scale;
 
+    if (!this.isDragging) {
+      this.clearSnapGuides();
+    }
+
     // Handle dragging
     if (this.isDragging && this.dragElement) {
       // Calculate new element position by subtracting drag offset
       const newElementGameX = mouseGameX - this.dragOffset.x;
       const newElementGameY = mouseGameY - this.dragOffset.y;
+      const snappedPosition = this.applySnapping(this.dragElement, newElementGameX, newElementGameY);
       
       // Convert from absolute game position to position relative to anchor
       const newPosition = this.calculateAnchorAdjustedPosition(
-        newElementGameX,
-        newElementGameY,
+        snappedPosition.x,
+        snappedPosition.y,
         this.dragElement
       );
       
@@ -283,6 +298,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       this.resizeElement = null;
       this.resizeDirection = null;
     }
+
+    this.clearSnapGuides();
   }
 
   private onKeyDown(event: KeyboardEvent) {
@@ -343,8 +360,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
   private getAnchorStartCoordinates(anchor: UIAnchor, parentElement?: UIElement | null): { x: number, y: number } {
     // Use parent dimensions if this is a child element, otherwise use canvas dimensions
-    const width = parentElement ? parentElement.size[0] : this.targetWidth;
-    const height = parentElement ? parentElement.size[1] : this.targetHeight;
+    const width = parentElement ? parentElement.size[0] : CANVAS_WIDTH;
+    const height = parentElement ? parentElement.size[1] : CANVAS_HEIGHT;
     
     switch (anchor) {
       case UIAnchor.TopLeft:
@@ -547,6 +564,124 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       width: width * this.scale,
       height: height * this.scale
     };
+  }
+
+  private getSiblingRectsForSnapping(elementId: string): UIRect[] {
+    const location = this.uiBuilder.getElementLocation(elementId);
+    const parentId = location?.parentId ?? null;
+    const allBounds = this.uiBuilder.elementBounds();
+    const siblingRects = allBounds
+      .filter(bounds => bounds.parentId === parentId && bounds.id !== elementId)
+      .map(bounds => bounds.rect);
+
+    if (parentId) {
+      const parentBounds = this.uiBuilder.getElementBounds(parentId);
+      if (parentBounds) {
+        siblingRects.push(parentBounds.rect);
+      }
+    } else {
+      siblingRects.push(this.canvasRect);
+    }
+
+    return siblingRects;
+  }
+
+  private updateSnapGuides(verticalGuide: number | null, horizontalGuide: number | null): void {
+    this.snapGuides.set({
+      vertical: verticalGuide !== null ? [verticalGuide * this.scale] : [],
+      horizontal: horizontalGuide !== null ? [horizontalGuide * this.scale] : [],
+    });
+  }
+
+  private clearSnapGuides(): void {
+    this.snapGuides.set({ vertical: [], horizontal: [] });
+  }
+
+  private applySnapping(element: UIElement, proposedX: number, proposedY: number): { x: number; y: number } {
+    if (!this.uiBuilder.snapToElements()) {
+      this.clearSnapGuides();
+      return { x: proposedX, y: proposedY };
+    }
+
+    const candidateRects = this.getSiblingRectsForSnapping(element.id);
+
+    if (!candidateRects.length) {
+      this.clearSnapGuides();
+      return { x: proposedX, y: proposedY };
+    }
+
+    const width = element.size[0];
+    const height = element.size[1];
+
+    const baseLeft = proposedX;
+    const baseRight = proposedX + width;
+    const baseCenterX = proposedX + width / 2;
+    const baseTop = proposedY;
+    const baseBottom = proposedY + height;
+    const baseCenterY = proposedY + height / 2;
+
+    let snappedX = proposedX;
+    let snappedY = proposedY;
+    let bestHorizontalDiff = this.snapThreshold + 1;
+    let bestVerticalDiff = this.snapThreshold + 1;
+    let verticalGuide: number | null = null;
+    let horizontalGuide: number | null = null;
+
+    for (const rect of candidateRects) {
+      const diffLeft = Math.abs(rect.left - baseLeft);
+      if (diffLeft < bestHorizontalDiff && diffLeft <= this.snapThreshold) {
+        bestHorizontalDiff = diffLeft;
+        snappedX = rect.left;
+        verticalGuide = rect.left;
+      }
+
+      const diffRight = Math.abs(rect.right - baseRight);
+      if (diffRight < bestHorizontalDiff && diffRight <= this.snapThreshold) {
+        bestHorizontalDiff = diffRight;
+        snappedX = rect.right - width;
+        verticalGuide = rect.right;
+      }
+
+      const diffCenterX = Math.abs(rect.centerX - baseCenterX);
+      if (diffCenterX < bestHorizontalDiff && diffCenterX <= this.snapThreshold) {
+        bestHorizontalDiff = diffCenterX;
+        snappedX = rect.centerX - width / 2;
+        verticalGuide = rect.centerX;
+      }
+
+      const diffTop = Math.abs(rect.top - baseTop);
+      if (diffTop < bestVerticalDiff && diffTop <= this.snapThreshold) {
+        bestVerticalDiff = diffTop;
+        snappedY = rect.top;
+        horizontalGuide = rect.top;
+      }
+
+      const diffBottom = Math.abs(rect.bottom - baseBottom);
+      if (diffBottom < bestVerticalDiff && diffBottom <= this.snapThreshold) {
+        bestVerticalDiff = diffBottom;
+        snappedY = rect.bottom - height;
+        horizontalGuide = rect.bottom;
+      }
+
+      const diffCenterY = Math.abs(rect.centerY - baseCenterY);
+      if (diffCenterY < bestVerticalDiff && diffCenterY <= this.snapThreshold) {
+        bestVerticalDiff = diffCenterY;
+        snappedY = rect.centerY - height / 2;
+        horizontalGuide = rect.centerY;
+      }
+    }
+
+    if (bestHorizontalDiff > this.snapThreshold) {
+      verticalGuide = null;
+    }
+
+    if (bestVerticalDiff > this.snapThreshold) {
+      horizontalGuide = null;
+    }
+
+    this.updateSnapGuides(verticalGuide, horizontalGuide);
+
+    return { x: snappedX, y: snappedY };
   }
 
   getBackgroundStyle(element: UIElement): any {

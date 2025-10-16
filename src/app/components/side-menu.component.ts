@@ -22,6 +22,7 @@ export class SideMenuComponent {
     [...this.uiBuilder.canvasBackgroundImages()].sort((a, b) => a.label.localeCompare(b.label))
   );
   backgroundImageUrl = computed(() => this.uiBuilder.canvasBackgroundImageUrl());
+  snapToElements = computed(() => this.uiBuilder.snapToElements());
   exportModalOpen = signal(false);
   exportArtifacts = signal<UIExportArtifacts | null>(null);
   readonly defaultBackgroundImage: CanvasBackgroundAsset;
@@ -136,6 +137,10 @@ export class SideMenuComponent {
     if (confirm('Are you sure you want to clear all elements?')) {
       this.uiBuilder.clear();
     }
+  }
+
+  setSnapToElements(enabled: boolean) {
+    this.uiBuilder.setSnapToElements(enabled);
   }
 
   getElementIcon(type: UIElementTypes): string {

@@ -9,6 +9,10 @@ import {
   UIImageType,
   CanvasBackgroundMode,
   CanvasBackgroundAsset,
+  CANVAS_WIDTH,
+  CANVAS_HEIGHT,
+  UIElementBounds,
+  UIRect,
 } from '../../models/types';
 
 const DEFAULT_CANVAS_BACKGROUND_IMAGE: CanvasBackgroundAsset = {
@@ -43,6 +47,17 @@ function normalizeAssetId(base: string, existing: CanvasBackgroundAsset[]): stri
   return candidate;
 }
 
+const RANDOM_NAME_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+
+function generateRandomSuffix(length = 5): string {
+  let result = '';
+  for (let index = 0; index < length; index++) {
+    const randomIndex = Math.floor(Math.random() * RANDOM_NAME_CHARS.length);
+    result += RANDOM_NAME_CHARS.charAt(randomIndex);
+  }
+  return result;
+}
+
 export interface UIExportArtifacts {
   params: UIParams[];
   paramsJson: string;
@@ -63,6 +78,7 @@ export class UiBuilderService {
   private _canvasBackgroundImage = signal<string | null>(DEFAULT_CANVAS_BACKGROUND_IMAGE.id);
   private _canvasBackgroundImages = signal<CanvasBackgroundAsset[]>([]);
   private _uploadedObjectUrls = new Set<string>();
+  private _snapToElements = signal<boolean>(true);
 
   // Public readonly signals
   readonly elements = this._elements.asReadonly();
@@ -72,6 +88,7 @@ export class UiBuilderService {
   readonly canvasBackgroundImages = this._canvasBackgroundImages.asReadonly();
   readonly defaultCanvasBackgroundImageId = DEFAULT_CANVAS_BACKGROUND_IMAGE.id;
   readonly defaultCanvasBackgroundImage = DEFAULT_CANVAS_BACKGROUND_IMAGE;
+  readonly snapToElements = this._snapToElements.asReadonly();
   readonly canvasBackgroundImageUrl = computed(() => {
     const imageId = this._canvasBackgroundImage();
     if (!imageId) {
@@ -85,8 +102,21 @@ export class UiBuilderService {
     const match = this._canvasBackgroundImages().find(option => option.id === imageId);
     return match?.url ?? DEFAULT_CANVAS_BACKGROUND_IMAGE.url;
   });
+  readonly elementBounds = computed(() => this.computeElementBounds());
 
   constructor() { }
+
+  setSnapToElements(enabled: boolean): void {
+    this._snapToElements.set(!!enabled);
+  }
+
+  toggleSnapToElements(): void {
+    this._snapToElements.update(value => !value);
+  }
+
+  getElementBounds(elementId: string): UIElementBounds | null {
+    return this.elementBounds().find(bounds => bounds.id === elementId) ?? null;
+  }
 
   setCanvasBackgroundMode(mode: CanvasBackgroundMode): void {
     if (!['black', 'white', 'image'].includes(mode)) {
@@ -216,7 +246,7 @@ export class UiBuilderService {
     const id = this.generateId();
     return {
       id,
-      name: name || `${type}_${id}`,
+      name: name || `${type}_${generateRandomSuffix()}`,
       type,
       ...DEFAULT_UI_PARAMS,
       children: [],
@@ -427,6 +457,118 @@ export class UiBuilderService {
     this._elements.set([]);
     this._selectedElementId.set(null);
     this._nextId = 1;
+  }
+
+  private computeElementBounds(): UIElementBounds[] {
+    const bounds: UIElementBounds[] = [];
+
+    const traverse = (
+      elements: UIElement[],
+      parentRect: UIRect | null,
+      parentId: string | null
+    ) => {
+      const parentWidth = parentRect ? parentRect.width : CANVAS_WIDTH;
+      const parentHeight = parentRect ? parentRect.height : CANVAS_HEIGHT;
+
+      for (const element of elements) {
+        const anchorStart = this.getAnchorStartCoordinates(element.anchor, parentWidth, parentHeight);
+        const anchorOffset = this.getAnchorOffset(element.anchor, element.size);
+        const baseX = parentRect ? parentRect.left : 0;
+        const baseY = parentRect ? parentRect.top : 0;
+        const absoluteX = baseX + anchorStart.x + anchorOffset.x + element.position[0];
+        const absoluteY = baseY + anchorStart.y + anchorOffset.y + element.position[1];
+        const width = element.size[0];
+        const height = element.size[1];
+
+        const rect: UIRect = {
+          left: absoluteX,
+          top: absoluteY,
+          right: absoluteX + width,
+          bottom: absoluteY + height,
+          width,
+          height,
+          centerX: absoluteX + width / 2,
+          centerY: absoluteY + height / 2,
+        };
+
+        bounds.push({
+          id: element.id,
+          parentId,
+          rect,
+        });
+
+        if (element.children?.length) {
+          traverse(element.children, rect, element.id);
+        }
+      }
+    };
+
+    traverse(this._elements(), null, null);
+
+    return bounds;
+  }
+
+  private getAnchorStartCoordinates(anchor: UIAnchor, parentWidth: number, parentHeight: number): { x: number; y: number } {
+    switch (anchor) {
+      case UIAnchor.TopLeft:
+        return { x: 0, y: 0 };
+      case UIAnchor.TopCenter:
+        return { x: parentWidth / 2, y: 0 };
+      case UIAnchor.TopRight:
+        return { x: parentWidth, y: 0 };
+      case UIAnchor.CenterLeft:
+        return { x: 0, y: parentHeight / 2 };
+      case UIAnchor.Center:
+        return { x: parentWidth / 2, y: parentHeight / 2 };
+      case UIAnchor.CenterRight:
+        return { x: parentWidth, y: parentHeight / 2 };
+      case UIAnchor.BottomLeft:
+        return { x: 0, y: parentHeight };
+      case UIAnchor.BottomCenter:
+        return { x: parentWidth / 2, y: parentHeight };
+      case UIAnchor.BottomRight:
+        return { x: parentWidth, y: parentHeight };
+      default:
+        return { x: 0, y: 0 };
+    }
+  }
+
+  private getAnchorOffset(anchor: UIAnchor, size: number[]): { x: number; y: number } {
+    const [width, height] = size;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    switch (anchor) {
+      case UIAnchor.TopCenter:
+      case UIAnchor.Center:
+      case UIAnchor.BottomCenter:
+        offsetX = -width / 2;
+        break;
+      case UIAnchor.TopRight:
+      case UIAnchor.CenterRight:
+      case UIAnchor.BottomRight:
+        offsetX = -width;
+        break;
+      default:
+        offsetX = 0;
+    }
+
+    switch (anchor) {
+      case UIAnchor.CenterLeft:
+      case UIAnchor.Center:
+      case UIAnchor.CenterRight:
+        offsetY = -height / 2;
+        break;
+      case UIAnchor.BottomLeft:
+      case UIAnchor.BottomCenter:
+      case UIAnchor.BottomRight:
+        offsetY = -height;
+        break;
+      default:
+        offsetY = 0;
+    }
+
+    return { x: offsetX, y: offsetY };
   }
 
   private serializeElement(element: UIElement): UIParams {

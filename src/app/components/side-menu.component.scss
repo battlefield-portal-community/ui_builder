@@ -281,6 +281,34 @@
   color: #4a9eff;
 }
 
+.snap-toggle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: #ccc;
+}
+
+.snap-toggle__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #fff;
+}
+
+.snap-toggle__label input {
+  width: 16px;
+  height: 16px;
+  accent-color: #4a9eff;
+}
+
+.snap-toggle__hint {
+  margin: 0;
+  color: #888;
+  line-height: 1.4;
+}
+
 .element-tree {
   max-height: 300px;
   overflow-y: auto;

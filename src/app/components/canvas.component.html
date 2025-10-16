@@ -10,6 +10,24 @@
     <div class="screen-indicator">
       1920x1080 · {{ scalePercent }}%
     </div>
+    <div class="snap-guides">
+      @for (position of snapGuides().vertical; track position) {
+        <div
+          class="snap-guide snap-guide-vertical"
+          [style.left.px]="position"
+          [style.height.px]="canvasHeight"
+        ></div>
+      }
+
+      @for (position of snapGuides().horizontal; track position) {
+        <div
+          class="snap-guide snap-guide-horizontal"
+          [style.top.px]="position"
+          [style.width.px]="canvasWidth"
+        ></div>
+      }
+    </div>
+
     @for (element of elements(); track element.id) {
       <div 
         class="ui-element"

@@ -99,7 +99,7 @@ export const DEFAULT_UI_PARAMS: Partial<UIParams> = {
     textLabel: '',
     textColor: [1, 1, 1],
     textAlpha: 1,
-    textSize: 12,
+    textSize: 24,
     textAnchor: UIAnchor.Center,
     padding: 0,
     bgColor: [0.2, 0.2, 0.2],
@@ -129,4 +129,24 @@ export interface CanvasBackgroundAsset {
     fileName: string;
     url: string;
     source?: 'default' | 'upload' | 'custom';
+}
+
+export const CANVAS_WIDTH = 1920;
+export const CANVAS_HEIGHT = 1080;
+
+export interface UIRect {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+    width: number;
+    height: number;
+    centerX: number;
+    centerY: number;
+}
+
+export interface UIElementBounds {
+    id: string;
+    parentId: string | null;
+    rect: UIRect;
 }
