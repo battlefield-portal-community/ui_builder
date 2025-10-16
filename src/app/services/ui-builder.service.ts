@@ -17,9 +17,9 @@ import {
 
 const DEFAULT_CANVAS_BACKGROUND_IMAGE: CanvasBackgroundAsset = {
   id: 'default-grid',
-  label: 'Grid Dark',
-  fileName: 'grid-dark.svg',
-  url: 'assets/bg_canvas/grid-dark.svg',
+  label: 'Game 1',
+  fileName: 'ingame.jpg',
+  url: 'assets/bg_canvas/ingame.jpg',
   source: 'default',
 };
 

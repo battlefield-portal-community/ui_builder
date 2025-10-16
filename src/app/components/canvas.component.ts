@@ -1,6 +1,6 @@
 import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, computed, signal } from '@angular/core';
 import { UiBuilderService } from '../services/ui-builder.service';
-import { UIElement, UIAnchor, CANVAS_WIDTH, CANVAS_HEIGHT, UIRect } from '../../models/types';
+import { UIElement, UIAnchor, CANVAS_WIDTH, CANVAS_HEIGHT, UIRect, UIBgFill } from '../../models/types';
 import { CommonModule } from '@angular/common';
 
 @Component({
@@ -54,11 +54,11 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     };
 
     if (mode === 'white') {
-      style['backgroundColor'] = '#ffffff';
+      style['background-color'] = '#ffffff';
     } else if (mode === 'image') {
       const imageUrl = this.uiBuilder.canvasBackgroundImageUrl();
       if (imageUrl) {
-        style['backgroundColor'] = '#000000';
+        style['background-color'] = '#000000';
         style['backgroundImage'] = `url(${imageUrl})`;
         style['backgroundSize'] = 'cover';
         style['backgroundPosition'] = 'center center';
@@ -686,10 +686,32 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
   getBackgroundStyle(element: UIElement): any {
     const [r, g, b] = element.bgColor;
-    return {
-      backgroundColor: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.bgAlpha})`,
+    const normalizedColor = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.bgAlpha})`;
+    const style: Record<string, string> = {
       padding: `${element.padding}px`,
     };
+
+    switch (element.bgFill) {
+      case UIBgFill.None:
+        style['background-color'] = 'transparent';
+        style['backdrop-filter'] = 'none';
+        style['-webkit-backdrop-filter'] = 'none';
+        break;
+      case UIBgFill.Blur: {
+        const blurRadius = `${Math.max(6, Math.round(14 * this.scale))}px`;
+        style['background-color'] = normalizedColor;
+        style['backdrop-filter'] = `blur(${blurRadius})`;
+        style['-webkit-backdrop-filter'] = `blur(${blurRadius})`;
+        break;
+      }
+      default:
+        style['background-color'] = normalizedColor;
+        style['backdrop-filter'] = 'none';
+        style['-webkit-backdrop-filter'] = 'none';
+        break;
+    }
+
+    return style;
   }
 
   getTextStyle(element: UIElement): any {
