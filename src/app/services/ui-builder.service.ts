@@ -615,7 +615,6 @@ export class UiBuilderService {
       " * Don't forget to replace placeholders as necessary.",
       ' */',
       "// import * as modlib from 'modlib';",
-      "// import { UIAnchor, UIBgFill, UIImageType } from 'modlib';",
       '',
       'export const widget = modlib.ParseUI(',
     ];
@@ -749,7 +748,7 @@ export class UiBuilderService {
   private formatTextLabel(param: UIParams, strings: Record<string, string>): string {
     const key = this.getLocalizationKey(param, strings);
     if (key) {
-      return `mod.${key}`;
+      return `mod.stringkeys.${key}`;
     }
     return this.formatString(param.textLabel ?? '');
   }
