@@ -609,14 +609,8 @@ export class UiBuilderService {
 
   private buildTypescriptCode(params: UIParams[], strings: Record<string, string>): string {
     const codeLines: string[] = [
-      '/**',
-      ' * Auto-generated UI script.',
-      ' * Ensure to import the modlib utilities and supporting enums.',
-      " * Don't forget to replace placeholders as necessary.",
-      ' */',
-      "// import * as modlib from 'modlib';",
-      '',
-      'export const widget = modlib.ParseUI(',
+      `// Auto-generated UI script ${new Date().toLocaleString()}`,
+      'const widget = modlib.ParseUI(',
     ];
 
     if (params.length) {
