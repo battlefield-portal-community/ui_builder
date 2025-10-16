@@ -1,59 +1,93 @@
 # BfUiBuilder
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 20.3.2.
+![Angular Version](https://img.shields.io/badge/angular-20.3-cc0000?logo=angular&logoColor=white)
+![License](https://img.shields.io/badge/license-TBD-lightgrey)
 
-## Development server
+BfUiBuilder is a browser-based layout designer for Battlefield Portal user interfaces. It pairs a drag-and-drop canvas with an inspection panel so you can prototype menus, HUD widgets, and overlays without writing code by hand. Once you're satisfied with the layout you can export strongly typed TypeScript and localization JSON, ready to drop into your mod tooling.
 
-To start a local development server, run:
+## Features
 
-```bash
-ng serve
+- **Visual canvas** scaled from the in-game 1920×1080 safe area with zoom controls and snapping guides.
+- **Element library** for Containers, Text, Images, and Buttons, including nesting and reordering from the side menu.
+- **Property editor** to tweak anchors, positions, sizes, typography, colors, backgrounds, padding, and button states.
+- **Background presets** with quick switching between solid, grid, and custom uploaded imagery.
+- **One-click exports** that generate TypeScript structures plus optional string maps.
+
+## Todo
+
+- Proper preview of container background
+- Image previews
+- Buttons are untested
+- Copy paste nodes
+- Ctrl+z
+- Importing UI
+- Padding
+- Drag and drop in the element hierarchy
+- More example backgrounds
+- Support more resolutions than just 1080p altough the current resolution is faked
+
+## Bugs
+- Ability to add sub elements to a text container
+- Some UI scrollbars shouldn't be visible (general responsiveness)
+
+## Getting started
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) 18.19 or later (LTS recommended)
+- [Angular CLI](https://angular.dev/tools/cli) 20.3 globally installed if you plan to use the `ng` helper commands (`npm install -g @angular/cli`)
+
+### Install and run
+
+1. Clone the repository.
+2. Install dependencies.
+
+```powershell
+npm install
+npm run start
+```
+Open `http://localhost:4200/` in your browser.
+
+## 🧭 Using the builder
+
+| Area | What it does |
+| --- | --- |
+| **Side Menu** | Add new elements, view the hierarchy, reorder items, toggle snapping, manage canvas backgrounds, and trigger exports. |
+| **Canvas** | Drag elements, resize handles, zoom with the mouse wheel, and click empty space to deselect. Snapping guides appear when alignment is close. |
+| **Properties Editor** | Fine-tune numeric values, select anchors, adjust colors, switch image glyphs, and enable button state styling. |
+
+### Typical workflow
+
+1. **Create elements** from the Side Menu. Selected parents receive new children, otherwise elements are added to the root.
+2. **Arrange visually** by dragging elements on the canvas or using keyboard navigation for deletion.
+3. **Refine properties** such as anchor points, padding, colors, and text in the Properties Editor. Color previews help pick contrasting palettes.
+5. **Export** via the *Export JSON* action. Copy or download the generated TypeScript and `strings.json` files to integrate with your mod pipeline.
+
+### Tips
+
+- Hold the mouse over the canvas and scroll to zoom. The view stays centered on the cursor position.
+- Enable **Snap to elements** from the Side Menu whenever you need consistent spacing between siblings.
+- Button elements expose extra styling controls once `Button Enabled` is switched on.
+- Ensure you select the element you want to add a child to.
+
+## 🛠️ Development scripts
+
+| Command | Purpose |
+| --- | --- |
+| `npm start` | Run the dev server with live reload. |
+| `npm run build` | Produce an optimized production build in `dist/`. |
+
+## 📁 Project structure
+
+```
+src/
+	app/
+		components/        # Canvas, Side Menu, and Properties Editor
+		services/          # Core UI state management and export logic
+	assets/bg_canvas/    # Built-in canvas background options
+public/                # Static assets served at root
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+## 🤝 Contributing
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
-
-```bash
-ng e2e
-```
-
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
-
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Improvements, bug fixes, and new UI element types are very welcome. Please open an issue describing the change before starting on larger features so we can align on scope.
