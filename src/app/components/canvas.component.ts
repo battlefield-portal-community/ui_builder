@@ -36,6 +36,28 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
+  canvasStyle = computed(() => {
+    const mode = this.uiBuilder.canvasBackgroundMode();
+    const style: Record<string, string> = {
+      backgroundColor: '#000000',
+      backgroundImage: 'none',
+    };
+
+    if (mode === 'white') {
+      style['backgroundColor'] = '#ffffff';
+    } else if (mode === 'image') {
+      const imageUrl = this.uiBuilder.canvasBackgroundImageUrl();
+      if (imageUrl) {
+        style['backgroundColor'] = '#000000';
+        style['backgroundImage'] = `url(${imageUrl})`;
+        style['backgroundSize'] = 'cover';
+        style['backgroundPosition'] = 'center center';
+        style['backgroundRepeat'] = 'no-repeat';
+      }
+    }
+
+    return style;
+  });
 
   // Drag and drop state
   isDragging = false;
@@ -348,15 +370,105 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     }
   }
 
+  private getAnchorOffset(anchor: UIAnchor, size: number[]): { x: number, y: number } {
+    const [width, height] = size;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    switch (anchor) {
+      case UIAnchor.TopCenter:
+      case UIAnchor.Center:
+      case UIAnchor.BottomCenter:
+        offsetX = -width / 2;
+        break;
+      case UIAnchor.TopRight:
+      case UIAnchor.CenterRight:
+      case UIAnchor.BottomRight:
+        offsetX = -width;
+        break;
+      default:
+        offsetX = 0;
+    }
+
+    switch (anchor) {
+      case UIAnchor.CenterLeft:
+      case UIAnchor.Center:
+      case UIAnchor.CenterRight:
+        offsetY = -height / 2;
+        break;
+      case UIAnchor.BottomLeft:
+      case UIAnchor.BottomCenter:
+      case UIAnchor.BottomRight:
+        offsetY = -height;
+        break;
+      default:
+        offsetY = 0;
+    }
+
+    return { x: offsetX, y: offsetY };
+  }
+
+  private getTextAlignment(anchor: UIAnchor): {
+    justifyContent: 'flex-start' | 'center' | 'flex-end';
+    alignItems: 'flex-start' | 'center' | 'flex-end';
+    textAlign: 'left' | 'center' | 'right';
+  } {
+    let justifyContent: 'flex-start' | 'center' | 'flex-end' = 'center';
+    let alignItems: 'flex-start' | 'center' | 'flex-end' = 'center';
+    let textAlign: 'left' | 'center' | 'right' = 'center';
+
+    switch (anchor) {
+      case UIAnchor.TopLeft:
+      case UIAnchor.CenterLeft:
+      case UIAnchor.BottomLeft:
+        justifyContent = 'flex-start';
+        textAlign = 'left';
+        break;
+      case UIAnchor.TopCenter:
+      case UIAnchor.Center:
+      case UIAnchor.BottomCenter:
+        justifyContent = 'center';
+        textAlign = 'center';
+        break;
+      case UIAnchor.TopRight:
+      case UIAnchor.CenterRight:
+      case UIAnchor.BottomRight:
+        justifyContent = 'flex-end';
+        textAlign = 'right';
+        break;
+    }
+
+    switch (anchor) {
+      case UIAnchor.TopLeft:
+      case UIAnchor.TopCenter:
+      case UIAnchor.TopRight:
+        alignItems = 'flex-start';
+        break;
+      case UIAnchor.CenterLeft:
+      case UIAnchor.Center:
+      case UIAnchor.CenterRight:
+        alignItems = 'center';
+        break;
+      case UIAnchor.BottomLeft:
+      case UIAnchor.BottomCenter:
+      case UIAnchor.BottomRight:
+        alignItems = 'flex-end';
+        break;
+    }
+
+    return { justifyContent, alignItems, textAlign };
+  }
+
   private calculateAnchorAdjustedPosition(absoluteGameX: number, absoluteGameY: number, element: UIElement): { x: number, y: number } {
     const parentElement = this.findParentElement(element.id);
+    const anchorOffset = this.getAnchorOffset(element.anchor, element.size);
     
     if (!parentElement) {
       // Root element: convert absolute position to local position relative to canvas anchor
       const anchorStart = this.getAnchorStartCoordinates(element.anchor, null);
       return {
-        x: absoluteGameX - anchorStart.x,
-        y: absoluteGameY - anchorStart.y
+        x: absoluteGameX - anchorStart.x - anchorOffset.x,
+        y: absoluteGameY - anchorStart.y - anchorOffset.y
       };
     } else {
       // Child element: convert absolute position to local position relative to parent anchor
@@ -368,8 +480,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       const localY = absoluteGameY - parentAbsolutePos.y;
       
       return {
-        x: localX - anchorStart.x,
-        y: localY - anchorStart.y
+        x: localX - anchorStart.x - anchorOffset.x,
+        y: localY - anchorStart.y - anchorOffset.y
       };
     }
   }
@@ -408,13 +520,14 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   private getAbsoluteGamePosition(element: UIElement): { x: number, y: number } {
     const [x, y] = element.position;
     const parentElement = this.findParentElement(element.id);
+    const anchorOffset = this.getAnchorOffset(element.anchor, element.size);
     
     if (!parentElement) {
       // Root element: position is relative to canvas with anchor
       const anchorStart = this.getAnchorStartCoordinates(element.anchor, null);
       return {
-        x: anchorStart.x + x,
-        y: anchorStart.y + y
+        x: anchorStart.x + anchorOffset.x + x,
+        y: anchorStart.y + anchorOffset.y + y
       };
     } else {
       // Child element: position is relative to parent with anchor
@@ -422,8 +535,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       const parentAbsolutePos = this.getAbsoluteGamePosition(parentElement);
       
       return {
-        x: parentAbsolutePos.x + anchorStart.x + x,
-        y: parentAbsolutePos.y + anchorStart.y + y
+        x: parentAbsolutePos.x + anchorStart.x + anchorOffset.x + x,
+        y: parentAbsolutePos.y + anchorStart.y + anchorOffset.y + y
       };
     }
   }
@@ -446,10 +559,19 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
   getTextStyle(element: UIElement): any {
     const [r, g, b] = element.textColor;
+    const alignment = this.getTextAlignment(element.textAnchor);
     return {
       color: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.textAlpha})`,
       fontSize: `${element.textSize * this.scale}px`,
       padding: `${element.padding}px`,
+      display: 'flex',
+      justifyContent: alignment.justifyContent,
+      alignItems: alignment.alignItems,
+      textAlign: alignment.textAlign,
+      width: '100%',
+      height: '100%',
+      flex: '1 1 auto',
+      pointerEvents: 'none',
     };
   }
 

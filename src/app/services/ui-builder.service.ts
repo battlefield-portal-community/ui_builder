@@ -1,5 +1,47 @@
-import { Injectable, signal } from '@angular/core';
-import { UIElement, UIElementTypes, DEFAULT_UI_PARAMS, UIAnchor, UIParams, UIBgFill, UIImageType } from '../../models/types';
+import { Injectable, computed, signal } from '@angular/core';
+import {
+  UIElement,
+  UIElementTypes,
+  DEFAULT_UI_PARAMS,
+  UIAnchor,
+  UIParams,
+  UIBgFill,
+  UIImageType,
+  CanvasBackgroundMode,
+  CanvasBackgroundAsset,
+} from '../../models/types';
+
+const DEFAULT_CANVAS_BACKGROUND_IMAGE: CanvasBackgroundAsset = {
+  id: 'default-grid',
+  label: 'Grid Dark',
+  fileName: 'grid-dark.svg',
+  url: 'assets/bg_canvas/grid-dark.svg',
+  source: 'default',
+};
+
+const defaultBackgroundMode: CanvasBackgroundMode = 'image';
+
+function formatBackgroundLabel(fileName: string): string {
+  const withoutExtension = fileName.replace(/\.[^/.]+$/, '');
+  return withoutExtension
+    .split(/[-_\s]+/)
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+function normalizeAssetId(base: string, existing: CanvasBackgroundAsset[]): string {
+  const sanitized = base.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'image';
+  let candidate = sanitized;
+  let suffix = 1;
+  const ids = new Set(existing.map(asset => asset.id));
+
+  while (ids.has(candidate) || candidate === DEFAULT_CANVAS_BACKGROUND_IMAGE.id) {
+    candidate = `${sanitized}-${suffix++}`;
+  }
+
+  return candidate;
+}
 
 export interface UIExportArtifacts {
   params: UIParams[];
@@ -17,11 +59,152 @@ export class UiBuilderService {
   private _selectedElementId = signal<string | null>(null);
   private _nextId = 1;
 
+  private _canvasBackgroundMode = signal<CanvasBackgroundMode>(defaultBackgroundMode);
+  private _canvasBackgroundImage = signal<string | null>(DEFAULT_CANVAS_BACKGROUND_IMAGE.id);
+  private _canvasBackgroundImages = signal<CanvasBackgroundAsset[]>([]);
+  private _uploadedObjectUrls = new Set<string>();
+
   // Public readonly signals
   readonly elements = this._elements.asReadonly();
   readonly selectedElementId = this._selectedElementId.asReadonly();
+  readonly canvasBackgroundMode = this._canvasBackgroundMode.asReadonly();
+  readonly canvasBackgroundImage = this._canvasBackgroundImage.asReadonly();
+  readonly canvasBackgroundImages = this._canvasBackgroundImages.asReadonly();
+  readonly defaultCanvasBackgroundImageId = DEFAULT_CANVAS_BACKGROUND_IMAGE.id;
+  readonly defaultCanvasBackgroundImage = DEFAULT_CANVAS_BACKGROUND_IMAGE;
+  readonly canvasBackgroundImageUrl = computed(() => {
+    const imageId = this._canvasBackgroundImage();
+    if (!imageId) {
+      return DEFAULT_CANVAS_BACKGROUND_IMAGE.url;
+    }
+
+    if (imageId === DEFAULT_CANVAS_BACKGROUND_IMAGE.id) {
+      return DEFAULT_CANVAS_BACKGROUND_IMAGE.url;
+    }
+
+    const match = this._canvasBackgroundImages().find(option => option.id === imageId);
+    return match?.url ?? DEFAULT_CANVAS_BACKGROUND_IMAGE.url;
+  });
 
   constructor() { }
+
+  setCanvasBackgroundMode(mode: CanvasBackgroundMode): void {
+    if (!['black', 'white', 'image'].includes(mode)) {
+      return;
+    }
+
+    this._canvasBackgroundMode.set(mode);
+
+    if (mode === 'image' && !this._canvasBackgroundImage()) {
+      const first = this._canvasBackgroundImages()[0];
+      this._canvasBackgroundImage.set(first?.id ?? DEFAULT_CANVAS_BACKGROUND_IMAGE.id);
+    }
+  }
+
+  setCanvasBackgroundImage(imageId: string): void {
+    if (!imageId) {
+      return;
+    }
+
+    if (imageId === DEFAULT_CANVAS_BACKGROUND_IMAGE.id) {
+      this._canvasBackgroundImage.set(DEFAULT_CANVAS_BACKGROUND_IMAGE.id);
+    } else {
+      const match = this._canvasBackgroundImages().find(option => option.id === imageId);
+      if (!match) {
+        return;
+      }
+      this._canvasBackgroundImage.set(match.id);
+    }
+
+    if (this._canvasBackgroundMode() !== 'image') {
+      this._canvasBackgroundMode.set('image');
+    }
+  }
+
+  addCanvasBackgroundImageFromPath(
+    path: string,
+    options?: { label?: string; id?: string; fileName?: string }
+  ): CanvasBackgroundAsset | null {
+    const trimmed = path.trim();
+    if (!trimmed) {
+      return null;
+    }
+
+    const existing = this._canvasBackgroundImages();
+    if (existing.some(asset => asset.url === trimmed || asset.id === trimmed)) {
+      return existing.find(asset => asset.url === trimmed || asset.id === trimmed) ?? null;
+    }
+
+    const rawFileName = options?.fileName ?? trimmed.split(/[\\/]/).pop() ?? trimmed;
+    const idBase = options?.id ?? rawFileName.replace(/\.[^/.]+$/, '');
+    const id = normalizeAssetId(idBase, existing);
+    const label = options?.label ?? formatBackgroundLabel(rawFileName);
+
+    const asset: CanvasBackgroundAsset = {
+      id,
+      label,
+      fileName: rawFileName,
+      url: trimmed,
+      source: 'custom',
+    };
+
+    this._canvasBackgroundImages.set([...existing, asset]);
+
+    if (this._canvasBackgroundMode() === 'image' && this._canvasBackgroundImage() === null) {
+      this._canvasBackgroundImage.set(asset.id);
+    }
+
+    return asset;
+  }
+
+  addCanvasBackgroundImageFromFile(file: File): CanvasBackgroundAsset | null {
+    const objectUrl = URL.createObjectURL(file);
+    const asset = this.addCanvasBackgroundImageFromPath(objectUrl, {
+      label: file.name,
+      id: file.name.replace(/\.[^/.]+$/, ''),
+      fileName: file.name,
+    });
+
+    if (!asset) {
+      URL.revokeObjectURL(objectUrl);
+      return null;
+    }
+
+    this._uploadedObjectUrls.add(objectUrl);
+    asset.source = 'upload';
+    return asset;
+  }
+
+  removeCanvasBackgroundImage(imageId: string): void {
+    const current = this._canvasBackgroundImages();
+    const match = current.find(asset => asset.id === imageId);
+    if (!match) {
+      return;
+    }
+
+    const next = current.filter(asset => asset.id !== imageId);
+    this._canvasBackgroundImages.set(next);
+
+    if (match.source === 'upload' && this._uploadedObjectUrls.has(match.url)) {
+      URL.revokeObjectURL(match.url);
+      this._uploadedObjectUrls.delete(match.url);
+    }
+
+    if (this._canvasBackgroundImage() === imageId) {
+      const fallback = next[0]?.id ?? DEFAULT_CANVAS_BACKGROUND_IMAGE.id;
+      this._canvasBackgroundImage.set(fallback);
+    }
+  }
+
+  clearCanvasBackgroundImages(): void {
+    this._canvasBackgroundImages.set([]);
+    this._uploadedObjectUrls.forEach(url => URL.revokeObjectURL(url));
+    this._uploadedObjectUrls.clear();
+
+    if (this._canvasBackgroundImage() !== DEFAULT_CANVAS_BACKGROUND_IMAGE.id) {
+      this._canvasBackgroundImage.set(DEFAULT_CANVAS_BACKGROUND_IMAGE.id);
+    }
+  }
 
   // Generate unique ID
   private generateId(): string {

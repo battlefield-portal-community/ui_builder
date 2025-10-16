@@ -3,6 +3,116 @@
     <h3>UI Builder</h3>
   </div>
 
+  <!-- Canvas Background -->
+  <div class="menu-section">
+    <h4>Canvas Background</h4>
+    <div class="background-mode-options">
+      <label class="background-mode-option">
+        <input
+          type="radio"
+          name="canvas-background-mode"
+          [checked]="backgroundMode() === 'black'"
+          (change)="setBackgroundMode('black')"
+        />
+        <span class="background-mode-label">
+          <span class="mode-swatch mode-swatch--black"></span>
+          Black
+        </span>
+      </label>
+      <label class="background-mode-option">
+        <input
+          type="radio"
+          name="canvas-background-mode"
+          [checked]="backgroundMode() === 'white'"
+          (change)="setBackgroundMode('white')"
+        />
+        <span class="background-mode-label">
+          <span class="mode-swatch mode-swatch--white"></span>
+          White
+        </span>
+      </label>
+      <label class="background-mode-option">
+        <input
+          type="radio"
+          name="canvas-background-mode"
+          [checked]="backgroundMode() === 'image'"
+          (change)="setBackgroundMode('image')"
+        />
+        <span class="background-mode-label">
+          <span class="mode-swatch mode-swatch--image"></span>
+          Image
+        </span>
+      </label>
+    </div>
+
+    @if (backgroundMode() === 'image') {
+      <div class="background-image-picker">
+        <label class="background-upload">
+          <input
+            class="background-upload__input"
+            type="file"
+            accept="image/*"
+            multiple
+            (change)="onBackgroundImageUpload($event)"
+          />
+          <span class="background-upload__icon">⬆️</span>
+          <span class="background-upload__text">Upload background image</span>
+        </label>
+
+        <div
+          class="background-image-grid"
+          [class.background-image-grid--empty]="backgroundImages().length === 0"
+        >
+          <button
+            type="button"
+            class="background-image-tile"
+            [class.selected]="isBackgroundImageSelected(defaultBackgroundImage.id)"
+            (click)="setBackgroundImage(defaultBackgroundImage.id)"
+            [title]="defaultBackgroundImage.fileName"
+          >
+            <span class="background-image-badge">Default</span>
+            <span
+              class="background-image-preview"
+              [style.background-image]="'url(' + defaultBackgroundImage.url + ')'"
+            ></span>
+            <span class="background-image-label">{{defaultBackgroundImage.label}}</span>
+          </button>
+
+          @for (image of backgroundImages(); track image.id) {
+            <button
+              type="button"
+              class="background-image-tile"
+              [class.selected]="isBackgroundImageSelected(image.id)"
+              (click)="setBackgroundImage(image.id)"
+              [title]="image.fileName"
+            >
+              <span
+                class="background-image-preview"
+                [style.background-image]="'url(' + image.url + ')'"
+              ></span>
+              <span class="background-image-label">{{image.label}}</span>
+            </button>
+          }
+        </div>
+
+        @if (backgroundImages().length === 0) {
+          <div class="background-empty">
+            Uploaded images will appear here. You can also reference assets by path in the service.
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="background-solid-preview">
+        <span
+          class="solid-preview"
+          [class.solid-preview--black]="backgroundMode() === 'black'"
+          [class.solid-preview--white]="backgroundMode() === 'white'"
+        ></span>
+        <span class="solid-preview-label">{{backgroundMode() | titlecase}} background active</span>
+      </div>
+    }
+  </div>
+
   <!-- Add Element Section -->
   <div class="menu-section">
     <h4>Add Element</h4>

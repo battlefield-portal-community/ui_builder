@@ -4,6 +4,7 @@
     class="canvas" 
     [style.width.px]="canvasWidth"
     [style.height.px]="canvasHeight"
+    [ngStyle]="canvasStyle()"
     (click)="onCanvasClick($event)"
   >
     <div class="screen-indicator">

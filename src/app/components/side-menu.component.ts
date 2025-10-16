@@ -1,7 +1,7 @@
 import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UiBuilderService, UIExportArtifacts } from '../services/ui-builder.service';
-import { UIElementTypes, UIElement } from '../../models/types';
+import { UIElementTypes, UIElement, CanvasBackgroundMode, CanvasBackgroundAsset } from '../../models/types';
 
 @Component({
   selector: 'app-side-menu',
@@ -16,10 +16,48 @@ export class SideMenuComponent {
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
   selectedElement = computed(() => this.uiBuilder.getSelectedElement());
+  backgroundMode = computed(() => this.uiBuilder.canvasBackgroundMode());
+  backgroundImage = computed(() => this.uiBuilder.canvasBackgroundImage());
+  backgroundImages = computed(() =>
+    [...this.uiBuilder.canvasBackgroundImages()].sort((a, b) => a.label.localeCompare(b.label))
+  );
+  backgroundImageUrl = computed(() => this.uiBuilder.canvasBackgroundImageUrl());
   exportModalOpen = signal(false);
   exportArtifacts = signal<UIExportArtifacts | null>(null);
+  readonly defaultBackgroundImage: CanvasBackgroundAsset;
 
-  constructor(private uiBuilder: UiBuilderService) {}
+  constructor(private uiBuilder: UiBuilderService) {
+    this.defaultBackgroundImage = this.uiBuilder.defaultCanvasBackgroundImage;
+  }
+
+  setBackgroundMode(mode: CanvasBackgroundMode) {
+    this.uiBuilder.setCanvasBackgroundMode(mode);
+  }
+
+  setBackgroundImage(imageId: string) {
+    this.uiBuilder.setCanvasBackgroundImage(imageId);
+  }
+
+  isBackgroundImageSelected(imageId: string): boolean {
+    return this.backgroundImage() === imageId;
+  }
+
+  onBackgroundImageUpload(event: Event) {
+    const input = event.target as HTMLInputElement;
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
+
+    Array.from(input.files).forEach(file => {
+      this.uiBuilder.addCanvasBackgroundImageFromFile(file);
+    });
+
+    input.value = '';
+    const currentMode = this.backgroundMode();
+    if (currentMode !== 'image') {
+      this.setBackgroundMode('image');
+    }
+  }
 
   addElement(type: UIElementTypes) {
     this.uiBuilder.addElement(type);

@@ -116,3 +116,13 @@ export const DEFAULT_UI_PARAMS: Partial<UIParams> = {
     buttonColorFocused: [0.5, 0.5, 0.5],
     buttonAlphaFocused: 1,
 };
+
+export type CanvasBackgroundMode = 'black' | 'white' | 'image';
+
+export interface CanvasBackgroundAsset {
+    id: string;
+    label: string;
+    fileName: string;
+    url: string;
+    source?: 'default' | 'upload' | 'custom';
+}

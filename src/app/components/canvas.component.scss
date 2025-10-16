@@ -68,8 +68,8 @@
   width: 100%;
   height: 100%;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
   position: relative;
 }
 
@@ -86,9 +86,9 @@
 }
 
 .text-content {
-  font-size: 14px;
-  color: white;
-  pointer-events: none;
+  width: 100%;
+  height: 100%;
+  display: flex;
 }
 
 .image-content {
