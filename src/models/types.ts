@@ -48,6 +48,8 @@ export type UIElementTypes = 'Container' | 'Text' | 'Image' | 'Button';
 type UIVector = number[];
 
 export interface UIParams {
+    parent: any;
+
     name: string;
     type: UIElementTypes;
     position: number[];
@@ -88,6 +90,8 @@ export interface UIElement extends UIParams {
 
 // Default values for new elements
 export const DEFAULT_UI_PARAMS: Partial<UIParams> = {
+    parent: null,
+
     position: [0, 0],
     size: [100, 50],
     anchor: UIAnchor.TopLeft,
