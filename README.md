@@ -31,6 +31,7 @@ BfUiBuilder is a browser-based layout designer for Battlefield Portal user inter
 ## Bugs
 - Ability to add sub elements to a text container
 - Some UI scrollbars shouldn't be visible (general responsiveness)
+- Zooming breaks element positionning
 
 ## Getting started
 
@@ -67,7 +68,7 @@ Open `http://localhost:4200/` in your browser.
 
 ### Tips
 
-- Hold the mouse over the canvas and scroll to zoom. The view stays centered on the cursor position.
+- Shift + scroll to zoom
 - Enable **Snap to elements** from the Side Menu whenever you need consistent spacing between siblings.
 - Button elements expose extra styling controls once `Button Enabled` is switched on.
 - Ensure you select the element you want to add a child to.
