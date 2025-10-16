@@ -26,6 +26,8 @@ BfUiBuilder is a browser-based layout designer for Battlefield Portal user inter
 - More example backgrounds
 - Support more resolutions than just 1080p altough the current resolution is faked
 
+- more export options 
+
 ## Bugs
 - Ability to add sub elements to a text container
 - Some UI scrollbars shouldn't be visible (general responsiveness)
