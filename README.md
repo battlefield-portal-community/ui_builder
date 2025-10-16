@@ -29,6 +29,10 @@ BfUiBuilder is a browser-based layout designer for Battlefield Portal user inter
 
 - more export options 
 
+- add those colors as default UI colors. 
+https://www.figma.com/design/jLoYZpZ0HFwJqAbhlMATgn/BF6-UI?node-id=0-1&t=uxEmLxYFZngWwc5R-1 
+
+
 ## Bugs
 - Ability to add sub elements to a text container
 - Some UI scrollbars shouldn't be visible (general responsiveness)
