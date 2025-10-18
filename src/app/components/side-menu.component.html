@@ -205,6 +205,13 @@
     <h4>Actions</h4>
     <div class="actions">
       <button 
+        class="action-button duplicate-btn"
+        (click)="duplicateSelectedElement()"
+        [disabled]="!selectedElementId()"
+      >
+        📋 Duplicate selected element
+      </button>
+      <button 
         class="action-button export-btn"
         (click)="exportJson()"
         [disabled]="elements().length === 0"

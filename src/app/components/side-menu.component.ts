@@ -75,6 +75,15 @@ export class SideMenuComponent {
     }
   }
 
+  duplicateSelectedElement() {
+    const selectedId = this.selectedElementId();
+    if (!selectedId) {
+      return;
+    }
+
+    this.uiBuilder.duplicateElement(selectedId);
+  }
+
   moveElement(event: MouseEvent, elementId: string, direction: 'up' | 'down') {
     event.stopPropagation();
     this.uiBuilder.moveElement(elementId, direction);

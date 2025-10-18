@@ -357,6 +357,44 @@ export class UiBuilderService {
     });
   }
 
+  duplicateElement(elementId: string): UIElement | null {
+    const original = this.findElementById(elementId);
+    if (!original) {
+      return null;
+    }
+
+    const location = this.getElementLocation(elementId);
+    if (!location) {
+      return null;
+    }
+
+    const existingNames = this.collectElementNames();
+    const clone = this.cloneElementWithNewIds(original, existingNames);
+
+    this._elements.update(elements => {
+      if (location.parentId === null) {
+        const next = [...elements];
+        const insertIndex = Math.min(location.index + 1, next.length);
+        next.splice(insertIndex, 0, clone);
+        return next;
+      }
+
+      return this.updateElementRecursive(elements, location.parentId, (parent) => {
+        const currentChildren = parent.children ? [...parent.children] : [];
+        const insertIndex = Math.min(location.index + 1, currentChildren.length);
+        const nextChildren = [...currentChildren];
+        nextChildren.splice(insertIndex, 0, clone);
+        return {
+          ...parent,
+          children: nextChildren,
+        };
+      });
+    });
+
+    this._selectedElementId.set(clone.id);
+    return clone;
+  }
+
   getElementLocation(elementId: string): { parentId: string | null; index: number; siblingCount: number } | null {
     const search = (elements: UIElement[], parentId: string | null): { parentId: string | null; index: number; siblingCount: number } | null => {
       const index = elements.findIndex(element => element.id === elementId);
@@ -428,6 +466,66 @@ export class UiBuilderService {
     });
 
     return { elements: moved ? updated : elements, moved };
+  }
+
+  private collectElementNames(): Set<string> {
+    const names = new Set<string>();
+
+    const traverse = (elements: UIElement[]) => {
+      for (const element of elements) {
+        if (element.name) {
+          names.add(element.name);
+        }
+
+        if (element.children?.length) {
+          traverse(element.children);
+        }
+      }
+    };
+
+    traverse(this._elements());
+    return names;
+  }
+
+  private cloneElementWithNewIds(element: UIElement, existingNames: Set<string>): UIElement {
+    const id = this.generateId();
+    const name = this.generateDuplicateName(element.name, existingNames);
+    const children = element.children?.map(child => this.cloneElementWithNewIds(child, existingNames)) ?? [];
+
+    return {
+      ...element,
+      id,
+      name,
+      position: this.cloneVector(element.position),
+      size: this.cloneVector(element.size),
+      textColor: this.cloneVector(element.textColor),
+      bgColor: this.cloneVector(element.bgColor),
+      imageColor: this.cloneVector(element.imageColor),
+      buttonColorBase: this.cloneVector(element.buttonColorBase),
+      buttonColorDisabled: this.cloneVector(element.buttonColorDisabled),
+      buttonColorPressed: this.cloneVector(element.buttonColorPressed),
+      buttonColorHover: this.cloneVector(element.buttonColorHover),
+      buttonColorFocused: this.cloneVector(element.buttonColorFocused),
+      children,
+    };
+  }
+
+  private generateDuplicateName(baseName: string | null | undefined, existingNames: Set<string>): string {
+    const trimmed = (baseName ?? '').trim();
+    const source = trimmed.length > 0 ? trimmed : 'Element';
+    let candidate = `${source}_Copy`;
+    let suffix = 2;
+
+    while (existingNames.has(candidate)) {
+      candidate = `${source}_Copy${suffix++}`;
+    }
+
+    existingNames.add(candidate);
+    return candidate;
+  }
+
+  private cloneVector(values: number[] | null | undefined): number[] {
+    return Array.isArray(values) ? [...values] : [];
   }
 
   generateExportArtifacts(): UIExportArtifacts {

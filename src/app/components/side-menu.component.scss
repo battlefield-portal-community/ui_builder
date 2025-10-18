@@ -432,6 +432,10 @@
   border-color: #ff4444;
 }
 
+.duplicate-btn:hover:not(:disabled) {
+  border-color: #5acb7c;
+}
+
 .export-modal-backdrop {
   position: fixed;
   inset: 0;
