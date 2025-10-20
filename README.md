@@ -56,7 +56,7 @@ docker build -t bf-ui-builder .
 docker run --rm -p 8080:80 bf-ui-builder
 ```
 
-Then navigate to `http://localhost:8080/`.
+Then navigate to `http://localhost:8080/ui-builder`.
 
 ## 🧭 Using the builder
 
