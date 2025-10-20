@@ -15,11 +15,32 @@
   flex-wrap: nowrap;
 }
 
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+
+.brand__title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+.brand__subtitle {
+  font-size: 11px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+}
+
 .background-controls {
   display: flex;
   align-items: center;
   gap: 18px;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .header-actions {
