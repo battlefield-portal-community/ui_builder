@@ -56,5 +56,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          build-args: BASE_HREF=/ui-builder/ 
+          build-args: |
+            BASE_HREF=/ui-builder/
           file: './Dockerfile'
+          
+      - name: Trigger new deployment
+        run: |
+          curl -X POST ${{ secrets.DEPLOYMENT_WEBHOOK }}
