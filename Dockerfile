@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
-ARG BASE_HREF=/
 FROM node:24-alpine AS build
+
+ARG BASE_HREF="/"
 
 WORKDIR /app
 
@@ -9,7 +10,7 @@ RUN npm ci
 
 COPY . .
 
-RUN npm run build -- --configuration=production --base-href ${BASE_HREF}
+RUN npm run build -- --configuration=production --base-href=${BASE_HREF}
 
 FROM nginx:stable-alpine3.21-perl
 
