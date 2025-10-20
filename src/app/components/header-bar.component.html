@@ -1,117 +1,134 @@
 <header class="header-bar">
-  <div class="brand">
-    <span class="brand__title">UI Builder</span>
-    <span class="brand__subtitle">Battlefield Portal</span>
-  </div>
+  <div class="header-main">
+    <div class="brand">
+      <span class="brand__title">UI Builder</span>
+      <span class="brand__subtitle">Battlefield Portal</span>
+    </div>
 
-  <div class="background-controls">
-    <div class="background-mode">
-      <span class="background-mode__label">Canvas background:</span>
-      <label class="mode-option">
-        <input
-          type="radio"
-          name="canvas-background-mode"
-          [checked]="backgroundMode() === 'black'"
-          (change)="setBackgroundMode('black')"
-        />
-        <span class="mode-pill mode-pill--black">Black</span>
-      </label>
-      <label class="mode-option">
-        <input
-          type="radio"
-          name="canvas-background-mode"
-          [checked]="backgroundMode() === 'white'"
-          (change)="setBackgroundMode('white')"
-        />
-        <span class="mode-pill mode-pill--white">White</span>
-      </label>
-      <label class="mode-option">
-        <input
-          type="radio"
-          name="canvas-background-mode"
-          [checked]="backgroundMode() === 'image'"
-          (change)="setBackgroundMode('image')"
-        />
-        <span class="mode-pill mode-pill--image">Image</span>
-      </label>
+    <div class="background-controls">
+      <div class="background-mode">
+        <span class="background-mode__label">Canvas background:</span>
+        <label class="mode-option">
+          <input
+            type="radio"
+            name="canvas-background-mode"
+            [checked]="backgroundMode() === 'black'"
+            (change)="setBackgroundMode('black')"
+          />
+          <span class="mode-pill mode-pill--black">Black</span>
+        </label>
+        <label class="mode-option">
+          <input
+            type="radio"
+            name="canvas-background-mode"
+            [checked]="backgroundMode() === 'white'"
+            (change)="setBackgroundMode('white')"
+          />
+          <span class="mode-pill mode-pill--white">White</span>
+        </label>
+        <label class="mode-option">
+          <input
+            type="radio"
+            name="canvas-background-mode"
+            [checked]="backgroundMode() === 'image'"
+            (change)="setBackgroundMode('image')"
+          />
+          <span class="mode-pill mode-pill--image">Image</span>
+        </label>
 
-      @if (backgroundMode() === 'image') {
-        <div class="background-image-controls">
-          <label class="background-upload">
-            <input
-              class="background-upload__input"
-              type="file"
-              accept="image/*"
-              multiple
-              (change)="onBackgroundImageUpload($event)"
-            />
-            <span class="background-upload__icon">⬆️</span>
-            <span class="background-upload__text">Upload</span>
-          </label>
+        @if (backgroundMode() === 'image') {
+          <div class="background-image-controls">
+            <label class="background-upload">
+              <input
+                class="background-upload__input"
+                type="file"
+                accept="image/*"
+                multiple
+                (change)="onBackgroundImageUpload($event)"
+              />
+              <span class="background-upload__icon">⬆️</span>
+              <span class="background-upload__text">Upload</span>
+            </label>
 
-          <div class="background-carousel">
-            <button
-              type="button"
-              class="background-tile"
-              [class.selected]="isBackgroundImageSelected(defaultBackgroundImage.id)"
-              (click)="setBackgroundImage(defaultBackgroundImage.id)"
-              [title]="defaultBackgroundImage.fileName"
-            >
-              <span class="background-tile__badge">Default</span>
-              <span
-                class="background-tile__preview"
-                [style.background-image]="'url(' + defaultBackgroundImage.url + ')'"
-              ></span>
-              <span class="background-tile__label">{{ defaultBackgroundImage.label }}</span>
-            </button>
-
-            @for (image of backgroundImages(); track image.id) {
+            <div class="background-carousel">
               <button
                 type="button"
                 class="background-tile"
-                [class.selected]="isBackgroundImageSelected(image.id)"
-                (click)="setBackgroundImage(image.id)"
-                [title]="image.fileName"
+                [class.selected]="isBackgroundImageSelected(defaultBackgroundImage.id)"
+                (click)="setBackgroundImage(defaultBackgroundImage.id)"
+                [title]="defaultBackgroundImage.fileName"
               >
+                <span class="background-tile__badge">Default</span>
                 <span
                   class="background-tile__preview"
-                  [style.background-image]="'url(' + image.url + ')'"
+                  [style.background-image]="'url(' + defaultBackgroundImage.url + ')'"
                 ></span>
-                <span class="background-tile__label">{{ image.label }}</span>
+                <span class="background-tile__label">{{ defaultBackgroundImage.label }}</span>
               </button>
+
+              @for (image of backgroundImages(); track image.id) {
+                <button
+                  type="button"
+                  class="background-tile"
+                  [class.selected]="isBackgroundImageSelected(image.id)"
+                  (click)="setBackgroundImage(image.id)"
+                  [title]="image.fileName"
+                >
+                  <span
+                    class="background-tile__preview"
+                    [style.background-image]="'url(' + image.url + ')'"
+                  ></span>
+                  <span class="background-tile__label">{{ image.label }}</span>
+                </button>
+              }
+            </div>
+
+            @if (backgroundImages().length === 0) {
+              <div class="background-empty">
+                Uploaded images will appear here.
+              </div>
             }
           </div>
+        } @else {
+          <div class="background-solid">
+            <span
+              class="solid-swatch"
+              [class.solid-swatch--black]="backgroundMode() === 'black'"
+              [class.solid-swatch--white]="backgroundMode() === 'white'"
+            ></span>
+            <span class="solid-label">{{ backgroundMode() | titlecase }} background active</span>
+          </div>
+        }
+      </div>
+    </div>
 
-          @if (backgroundImages().length === 0) {
-            <div class="background-empty">
-              Uploaded images will appear here.
-            </div>
-          }
-        </div>
-      } @else {
-        <div class="background-solid">
-          <span
-            class="solid-swatch"
-            [class.solid-swatch--black]="backgroundMode() === 'black'"
-            [class.solid-swatch--white]="backgroundMode() === 'white'"
-          ></span>
-          <span class="solid-label">{{ backgroundMode() | titlecase }} background active</span>
-        </div>
-      }
+    <div class="header-actions">
+      <button
+        type="button"
+        class="action-button"
+        (click)="openImportModal()"
+        title="Import UI TypeScript snippet"
+      >
+        📥 Import UI
+      </button>
+      <button
+        type="button"
+        class="action-button"
+        (click)="exportArtifactsToJson()"
+        [disabled]="elements().length === 0"
+        title="Export UI artifacts"
+      >
+        📄 Export UI
+      </button>
     </div>
   </div>
 
-  <div class="header-actions">
-    <button
-      type="button"
-      class="action-button"
-      (click)="exportArtifactsToJson()"
-      [disabled]="elements().length === 0"
-      title="Export UI artifacts"
-    >
-      📄 Export UI
-    </button>
-  </div>
+  @if (bannerMessage(); as banner) {
+    <div class="header-banner" [class.header-banner--success]="banner.type === 'success'" [class.header-banner--error]="banner.type === 'error'">
+      <span>{{ banner.text }}</span>
+      <button type="button" class="header-banner__close" (click)="dismissBannerMessage()">✖</button>
+    </div>
+  }
 </header>
 
 @if (exportModalOpen()) {
@@ -147,4 +164,50 @@
       </div>
     </div>
   }
+}
+
+@if (importModalOpen()) {
+  <div class="export-modal-backdrop" (click)="closeImportModal()">
+    <div class="export-modal import-modal" (click)="$event.stopPropagation()">
+      <div class="export-modal__header">
+        <h4>Import UI Code</h4>
+        <button type="button" class="export-modal__close" (click)="closeImportModal()">✖</button>
+      </div>
+      <div class="export-modal__body import-modal__body">
+        <div class="import-form">
+          <label for="import-source">Paste the TypeScript snippet generated by Export UI:</label>
+          <textarea
+            id="import-source"
+            class="import-textarea"
+            rows="14"
+            [value]="importSource()"
+            (input)="onImportSourceChange($event)"
+            placeholder="const widget = modlib.ParseUI(...);"
+          ></textarea>
+          <p class="import-help">By default, existing elements are replaced. Enable append to keep the current layout. Your project is auto-saved before import.</p>
+          <div class="import-mode-toggle">
+            <label class="mode-switch">
+              <input
+                type="checkbox"
+                [checked]="importMode() === 'append'"
+                (change)="setImportMode($event)"
+              />
+              <span class="mode-switch__indicator"></span>
+              <span class="mode-switch__label">Append to existing UI</span>
+            </label>
+            <p class="import-mode-toggle__hint">
+              When enabled, imported root elements will be added without clearing the current layout.
+            </p>
+          </div>
+          @if (importError(); as error) {
+            <div class="import-feedback import-feedback--error">{{ error }}</div>
+          }
+        </div>
+        <div class="import-actions">
+          <button type="button" class="import-submit" (click)="submitImport()">Import</button>
+          <button type="button" class="import-cancel" (click)="closeImportModal()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
 }

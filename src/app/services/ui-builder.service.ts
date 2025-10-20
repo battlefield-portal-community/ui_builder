@@ -678,7 +678,10 @@ export class UiBuilderService {
     return this.generateExportArtifacts().paramsJson;
   }
 
-  importFromTypescript(source: string): { success: boolean; importedCount: number; error?: string } {
+  importFromTypescript(
+    source: string,
+    options?: { mode?: 'replace' | 'append' }
+  ): { success: boolean; importedCount: number; error?: string } {
     const text = typeof source === 'string' ? source : '';
     if (!text.trim()) {
       return { success: false, importedCount: 0, error: 'No TypeScript content provided.' };
@@ -687,9 +690,13 @@ export class UiBuilderService {
     try {
       const params = this.parseParseUiTypescript(text);
 
-      // Reset state before rebuilding the hierarchy
-      this.clear();
-      this._copiedElement = null;
+      const mode = options?.mode === 'append' ? 'append' : 'replace';
+
+      if (mode === 'replace') {
+        this.clear();
+        this._copiedElement = null;
+      }
+
       this._lastSavedSignature = null;
 
       if (!params.length) {
@@ -697,7 +704,13 @@ export class UiBuilderService {
       }
 
       const restored = this.restoreElementsFromParams(params);
-      this._elements.set(restored);
+
+      if (mode === 'append') {
+        this._elements.set([...this._elements(), ...restored]);
+      } else {
+        this._elements.set(restored);
+      }
+
       this._selectedElementId.set(null);
 
       return { success: true, importedCount: restored.length };
