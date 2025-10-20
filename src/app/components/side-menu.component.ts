@@ -1,7 +1,7 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { UiBuilderService, UIExportArtifacts } from '../services/ui-builder.service';
-import { UIElementTypes, UIElement, CanvasBackgroundMode, CanvasBackgroundAsset } from '../../models/types';
+import { UiBuilderService } from '../services/ui-builder.service';
+import { UIElementTypes, UIElement } from '../../models/types';
 
 @Component({
   selector: 'app-side-menu',
@@ -16,48 +16,9 @@ export class SideMenuComponent {
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
   selectedElement = computed(() => this.uiBuilder.getSelectedElement());
-  backgroundMode = computed(() => this.uiBuilder.canvasBackgroundMode());
-  backgroundImage = computed(() => this.uiBuilder.canvasBackgroundImage());
-  backgroundImages = computed(() =>
-    [...this.uiBuilder.canvasBackgroundImages()].sort((a, b) => a.label.localeCompare(b.label))
-  );
-  backgroundImageUrl = computed(() => this.uiBuilder.canvasBackgroundImageUrl());
   snapToElements = computed(() => this.uiBuilder.snapToElements());
-  exportModalOpen = signal(false);
-  exportArtifacts = signal<UIExportArtifacts | null>(null);
-  readonly defaultBackgroundImage: CanvasBackgroundAsset;
 
   constructor(private uiBuilder: UiBuilderService) {
-    this.defaultBackgroundImage = this.uiBuilder.defaultCanvasBackgroundImage;
-  }
-
-  setBackgroundMode(mode: CanvasBackgroundMode) {
-    this.uiBuilder.setCanvasBackgroundMode(mode);
-  }
-
-  setBackgroundImage(imageId: string) {
-    this.uiBuilder.setCanvasBackgroundImage(imageId);
-  }
-
-  isBackgroundImageSelected(imageId: string): boolean {
-    return this.backgroundImage() === imageId;
-  }
-
-  onBackgroundImageUpload(event: Event) {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) {
-      return;
-    }
-
-    Array.from(input.files).forEach(file => {
-      this.uiBuilder.addCanvasBackgroundImageFromFile(file);
-    });
-
-    input.value = '';
-    const currentMode = this.backgroundMode();
-    if (currentMode !== 'image') {
-      this.setBackgroundMode('image');
-    }
   }
 
   addElement(type: UIElementTypes) {
@@ -98,48 +59,6 @@ export class SideMenuComponent {
     }
 
     return location.index < location.siblingCount - 1;
-  }
-
-  exportJson() {
-    const artifacts = this.uiBuilder.generateExportArtifacts();
-    this.exportArtifacts.set(artifacts);
-    this.exportModalOpen.set(true);
-  }
-
-  closeExportModal() {
-    this.exportModalOpen.set(false);
-  }
-
-  async copyExportContent(section: 'typescript' | 'strings') {
-    const artifacts = this.exportArtifacts();
-    if (!artifacts) return;
-
-    const content = section === 'typescript' ? artifacts.typescriptCode : artifacts.stringsJson;
-
-    try {
-      await navigator.clipboard.writeText(content);
-    } catch (error) {
-      console.error('Failed to copy export content:', error);
-    }
-  }
-
-  downloadExportContent(section: 'typescript' | 'strings') {
-    const artifacts = this.exportArtifacts();
-    if (!artifacts) return;
-
-    const content = section === 'typescript' ? artifacts.typescriptCode : artifacts.stringsJson;
-    const filename = section === 'typescript' ? 'ui-export.ts' : 'ui-strings.json';
-    const type = section === 'typescript' ? 'text/plain' : 'application/json';
-
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
   }
 
   clearAll() {

@@ -104,7 +104,7 @@ export const DEFAULT_UI_PARAMS: Partial<UIParams> = {
     padding: 0,
     bgColor: [0.2, 0.2, 0.2],
     bgAlpha: 1,
-    bgFill: UIBgFill.Solid,
+    bgFill: UIBgFill.None,
     imageType: UIImageType.None,
     imageColor: [1, 1, 1],
     imageAlpha: 1,

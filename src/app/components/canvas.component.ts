@@ -259,7 +259,10 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       
       // Update element position
       this.uiBuilder.updateElement(this.dragElement.id, {
-        position: [newPosition.x, newPosition.y]
+        position: [
+          this.roundValue(newPosition.x, 2),
+          this.roundValue(newPosition.y, 2)
+        ]
       });
     }
 
@@ -273,11 +276,11 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
       // Calculate new size based on resize direction
       if (this.resizeDirection === 'right' || this.resizeDirection === 'corner') {
-        newWidth = Math.max(10, this.resizeStartSize.width + deltaX); // Minimum width of 10
+        newWidth = this.roundValue(Math.max(10, this.resizeStartSize.width + deltaX), 2); // Minimum width of 10
       }
       
       if (this.resizeDirection === 'bottom' || this.resizeDirection === 'corner') {
-        newHeight = Math.max(10, this.resizeStartSize.height + deltaY); // Minimum height of 10
+        newHeight = this.roundValue(Math.max(10, this.resizeStartSize.height + deltaY), 2); // Minimum height of 10
       }
 
       // Update element size
@@ -303,13 +306,52 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private onKeyDown(event: KeyboardEvent) {
-    // Handle Delete key
-    if (event.key === 'Delete' || event.key === 'Del') {
+    if (!this.shouldHandleGlobalShortcut(event)) {
+      return;
+    }
+
+    const key = event.key.toLowerCase();
+
+    if ((event.ctrlKey || event.metaKey) && key === 'c') {
+      const selectedId = this.selectedElementId();
+      if (selectedId) {
+        this.uiBuilder.copyElement(selectedId);
+      }
+      return;
+    }
+
+    if ((event.ctrlKey || event.metaKey) && key === 'v') {
+      const pasted = this.uiBuilder.pasteCopiedElement();
+      if (pasted) {
+        event.preventDefault();
+      }
+      return;
+    }
+
+    if (key === 'delete' || key === 'del') {
       const selectedId = this.selectedElementId();
       if (selectedId) {
         this.deleteSelectedElement();
       }
     }
+  }
+
+  private shouldHandleGlobalShortcut(event: KeyboardEvent): boolean {
+    const target = event.target as HTMLElement | null;
+    if (!target) {
+      return true;
+    }
+
+    const tagName = target.tagName?.toLowerCase();
+    if (tagName === 'input' || tagName === 'textarea') {
+      return false;
+    }
+
+    if (target.isContentEditable) {
+      return false;
+    }
+
+    return true;
   }
 
   private deleteSelectedElement() {
@@ -503,7 +545,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  getElementStyle(element: UIElement, parent?: UIElement): any {
+  getElementStyle(element: UIElement, parent?: UIElement | null): any {
     const position = this.calculatePosition(element, parent);
     const size = this.calculateSize(element);
 
@@ -516,7 +558,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     };
   }
 
-  private calculatePosition(element: UIElement, parent?: UIElement): { x: number, y: number } {
+  private calculatePosition(element: UIElement, parent?: UIElement | null): { x: number, y: number } {
     const elementAbsolute = this.getAbsoluteGamePosition(element);
 
     if (!parent) {
@@ -685,8 +727,21 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   getBackgroundStyle(element: UIElement): any {
-    const [r, g, b] = element.bgColor;
-    const normalizedColor = `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.bgAlpha})`;
+    const clampChannel = (value: number) => Math.min(1, Math.max(0, value));
+    const normalizedBg = element.bgColor.map(channel => clampChannel(channel));
+    const alpha = clampChannel(element.bgAlpha);
+    const toRgba = (color: number[], customAlpha = alpha) =>
+      `rgba(${Math.round(clampChannel(color[0]) * 255)}, ${Math.round(clampChannel(color[1]) * 255)}, ${Math.round(clampChannel(color[2]) * 255)}, ${customAlpha})`;
+    const lighten = (color: number[], factor: number): number[] =>
+      color.map(channel => clampChannel(channel + (1 - channel) * factor));
+    const darken = (color: number[], factor: number): number[] =>
+      color.map(channel => clampChannel(channel * (1 - factor)));
+
+    const baseFill = toRgba(normalizedBg);
+    const borderColor = toRgba(normalizedBg, 1);
+    const lighterStop = toRgba(lighten(normalizedBg, 0.25));
+    const darkerStop = toRgba(darken(normalizedBg, 0.2));
+
     const style: Record<string, string> = {
       padding: `${element.padding}px`,
     };
@@ -694,21 +749,94 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     switch (element.bgFill) {
       case UIBgFill.None:
         style['background-color'] = 'transparent';
+        style['background-image'] = 'none';
+        style['border'] = '2px dotted rgba(150, 150, 150, 0.7)';
+        style['backdrop-filter'] = 'none';
+        style['-webkit-backdrop-filter'] = 'none';
+        break;
+      case UIBgFill.Solid:
+        style['background-color'] = baseFill;
+        style['opacity'] = '1';
+        style['background-image'] = 'none';
+        style['border'] = 'none';
         style['backdrop-filter'] = 'none';
         style['-webkit-backdrop-filter'] = 'none';
         break;
       case UIBgFill.Blur: {
         const blurRadius = `${Math.max(6, Math.round(14 * this.scale))}px`;
-        style['background-color'] = normalizedColor;
+        style['background-color'] = baseFill;
+        style['opacity'] = '0.8';
+        style['background-image'] = 'none';
+        style['border'] = 'none';
         style['backdrop-filter'] = `blur(${blurRadius})`;
         style['-webkit-backdrop-filter'] = `blur(${blurRadius})`;
         break;
       }
-      default:
-        style['background-color'] = normalizedColor;
+      case UIBgFill.OutlineThin:
+        style['background-color'] = 'transparent';
+        style['background-image'] = 'none';
+        style['border'] = `1px solid ${borderColor}`;
         style['backdrop-filter'] = 'none';
         style['-webkit-backdrop-filter'] = 'none';
         break;
+      case UIBgFill.OutlineThick:
+        style['background-color'] = 'transparent';
+        style['background-image'] = 'none';
+        style['border'] = `3px solid ${borderColor}`;
+        style['backdrop-filter'] = 'none';
+        style['-webkit-backdrop-filter'] = 'none';
+        break;
+      case UIBgFill.GradientTop:
+        style['background-color'] = 'transparent';
+        style['background-image'] = `linear-gradient(to bottom, ${lighterStop}, ${darkerStop})`;
+        style['border'] = 'none';
+        style['backdrop-filter'] = 'none';
+        style['-webkit-backdrop-filter'] = 'none';
+        break;
+      case UIBgFill.GradientBottom:
+        style['background-color'] = 'transparent';
+        style['background-image'] = `linear-gradient(to top, ${lighterStop}, ${darkerStop})`;
+        style['border'] = 'none';
+        style['backdrop-filter'] = 'none';
+        style['-webkit-backdrop-filter'] = 'none';
+        break;
+      case UIBgFill.GradientLeft:
+        style['background-color'] = 'transparent';
+        style['background-image'] = `linear-gradient(to right, ${lighterStop}, ${darkerStop})`;
+        style['border'] = 'none';
+        style['backdrop-filter'] = 'none';
+        style['-webkit-backdrop-filter'] = 'none';
+        break;
+      case UIBgFill.GradientRight:
+        style['background-color'] = 'transparent';
+        style['background-image'] = `linear-gradient(to left, ${lighterStop}, ${darkerStop})`;
+        style['border'] = 'none';
+        style['backdrop-filter'] = 'none';
+        style['-webkit-backdrop-filter'] = 'none';
+        break;
+      default:
+        style['background-color'] = baseFill;
+        style['background-image'] = 'none';
+        style['border'] = 'none';
+        style['backdrop-filter'] = 'none';
+        style['-webkit-backdrop-filter'] = 'none';
+        break;
+    }
+
+    if (!style['background-image']) {
+      style['background-image'] = 'none';
+    }
+    if (!style['border']) {
+      style['border'] = 'none';
+    }
+    if (!style['backdrop-filter']) {
+      style['backdrop-filter'] = 'none';
+    }
+    if (!style['-webkit-backdrop-filter']) {
+      style['-webkit-backdrop-filter'] = 'none';
+    }
+    if (!style['background-color']) {
+      style['background-color'] = 'transparent';
     }
 
     return style;
@@ -749,5 +877,10 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       fontSize: `${element.textSize * this.scale}px`,
       padding: `${element.padding}px`,
     };
+  }
+
+  roundValue(value: number, decimals: number): number {
+    const factor = Math.pow(10, decimals);
+    return Math.round(value * factor) / factor;
   }
 }

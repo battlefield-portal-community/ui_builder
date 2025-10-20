@@ -14,29 +14,24 @@ BfUiBuilder is a browser-based layout designer for Battlefield Portal user inter
 - **One-click exports** that generate TypeScript structures plus optional string maps.
 
 ## Todo
-
-- Proper preview of container background
 - Image previews
-- Buttons are untested
-- Copy paste nodes
+- Buttons bound function
 - Ctrl+z
 - Importing UI
 - Padding
 - Drag and drop in the element hierarchy
 - More example backgrounds
 - Support more resolutions than just 1080p altough the current resolution is faked
-- Store current project in the cookies/local storage
-
-- more export options 
-
-- add those colors as default UI colors. 
-https://www.figma.com/design/jLoYZpZ0HFwJqAbhlMATgn/BF6-UI?node-id=0-1&t=uxEmLxYFZngWwc5R-1 
-
+- More export options 
+  - Multiple exported ParseUi functions calls for every root element
+- Tab and menu with code that handles showing and hiding the correct page
+- Save and continue later
 
 ## Bugs
 - Ability to add sub elements to a text container
 - Some UI scrollbars shouldn't be visible (general responsiveness)
 - Zooming breaks element positionning
+- Default fill is none but still shows a color
 
 ## Getting started
 
@@ -83,6 +78,7 @@ Then navigate to `http://localhost:8080/`.
 ### Tips
 
 - Shift + scroll to zoom
+- Use **Ctrl+C / Ctrl+V** to copy and paste the currently selected element, including all nested children.
 - Enable **Snap to elements** from the Side Menu whenever you need consistent spacing between siblings.
 - Button elements expose extra styling controls once `Button Enabled` is switched on.
 - Ensure you select the element you want to add a child to.

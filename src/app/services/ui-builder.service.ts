@@ -25,6 +25,37 @@ const DEFAULT_CANVAS_BACKGROUND_IMAGE: CanvasBackgroundAsset = {
 
 const defaultBackgroundMode: CanvasBackgroundMode = 'image';
 
+const AUTOSAVE_COOKIE_NAME = 'bf_ui_builder_autosave';
+const AUTOSAVE_INTERVAL_MS = 30000;
+const AUTOSAVE_COOKIE_MAX_AGE_DAYS = 7;
+
+interface UIPersistedPayload {
+  version: number;
+  savedAt: string;
+  paramsJson: string;
+  stringsJson: string;
+  backgroundMode: CanvasBackgroundMode;
+  backgroundImage: string | null;
+}
+
+type ParseUiTokenType =
+  | 'braceOpen'
+  | 'braceClose'
+  | 'bracketOpen'
+  | 'bracketClose'
+  | 'colon'
+  | 'comma'
+  | 'string'
+  | 'number'
+  | 'identifier';
+
+interface ParseUiToken {
+  type: ParseUiTokenType;
+  value?: string | number | boolean | null;
+  raw?: string;
+  position: number;
+}
+
 function formatBackgroundLabel(fileName: string): string {
   const withoutExtension = fileName.replace(/\.[^/.]+$/, '');
   return withoutExtension
@@ -73,12 +104,20 @@ export class UiBuilderService {
   private _elements = signal<UIElement[]>([]);
   private _selectedElementId = signal<string | null>(null);
   private _nextId = 1;
+  private _autoSaveIntervalId: number | null = null;
+  private _lastSavedSignature: string | null = null;
 
   private _canvasBackgroundMode = signal<CanvasBackgroundMode>(defaultBackgroundMode);
   private _canvasBackgroundImage = signal<string | null>(DEFAULT_CANVAS_BACKGROUND_IMAGE.id);
   private _canvasBackgroundImages = signal<CanvasBackgroundAsset[]>([]);
   private _uploadedObjectUrls = new Set<string>();
   private _snapToElements = signal<boolean>(true);
+  private _copiedElement: {
+    snapshot: UIElement;
+    parentId: string | null;
+    index: number;
+    sourceId: string;
+  } | null = null;
 
   // Public readonly signals
   readonly elements = this._elements.asReadonly();
@@ -104,7 +143,10 @@ export class UiBuilderService {
   });
   readonly elementBounds = computed(() => this.computeElementBounds());
 
-  constructor() { }
+  constructor() {
+    this.restoreProjectFromCookie();
+    this.startAutoSaveTimer();
+  }
 
   setSnapToElements(enabled: boolean): void {
     this._snapToElements.set(!!enabled);
@@ -357,6 +399,61 @@ export class UiBuilderService {
     });
   }
 
+  copyElement(elementId: string): boolean {
+    const original = this.findElementById(elementId);
+    if (!original) {
+      this._copiedElement = null;
+      return false;
+    }
+
+    const location = this.getElementLocation(elementId);
+    if (!location) {
+      this._copiedElement = null;
+      return false;
+    }
+
+    this._copiedElement = {
+      snapshot: this.cloneElementSnapshot(original),
+      parentId: location.parentId,
+      index: location.index,
+      sourceId: elementId,
+    };
+
+    return true;
+  }
+
+  pasteCopiedElement(): UIElement | null {
+    if (!this._copiedElement) {
+      return null;
+    }
+
+    const existingNames = this.collectElementNames();
+    const snapshot = this._copiedElement.snapshot;
+
+    const sourceLocation = this.getElementLocation(this._copiedElement.sourceId);
+    let parentId = sourceLocation?.parentId ?? this._copiedElement.parentId;
+    let insertIndex = sourceLocation?.index ?? this._copiedElement.index;
+
+    if (parentId && !this.findElementById(parentId)) {
+      parentId = null;
+    }
+
+    const clone = this.cloneElementWithNewIds(snapshot, existingNames);
+    const inserted = this.insertCloneAtLocation(clone, parentId, insertIndex + 1);
+
+    if (inserted) {
+      const location = this.getElementLocation(inserted.id);
+      this._copiedElement = {
+        snapshot: this.cloneElementSnapshot(snapshot),
+        parentId: location?.parentId ?? parentId,
+        index: location?.index ?? insertIndex + 1,
+        sourceId: inserted.id,
+      };
+    }
+
+    return inserted;
+  }
+
   duplicateElement(elementId: string): UIElement | null {
     const original = this.findElementById(elementId);
     if (!original) {
@@ -370,29 +467,7 @@ export class UiBuilderService {
 
     const existingNames = this.collectElementNames();
     const clone = this.cloneElementWithNewIds(original, existingNames);
-
-    this._elements.update(elements => {
-      if (location.parentId === null) {
-        const next = [...elements];
-        const insertIndex = Math.min(location.index + 1, next.length);
-        next.splice(insertIndex, 0, clone);
-        return next;
-      }
-
-      return this.updateElementRecursive(elements, location.parentId, (parent) => {
-        const currentChildren = parent.children ? [...parent.children] : [];
-        const insertIndex = Math.min(location.index + 1, currentChildren.length);
-        const nextChildren = [...currentChildren];
-        nextChildren.splice(insertIndex, 0, clone);
-        return {
-          ...parent,
-          children: nextChildren,
-        };
-      });
-    });
-
-    this._selectedElementId.set(clone.id);
-    return clone;
+    return this.insertCloneAtLocation(clone, location.parentId, location.index + 1);
   }
 
   getElementLocation(elementId: string): { parentId: string | null; index: number; siblingCount: number } | null {
@@ -510,6 +585,25 @@ export class UiBuilderService {
     };
   }
 
+  private cloneElementSnapshot(element: UIElement): UIElement {
+    const children = element.children?.map(child => this.cloneElementSnapshot(child)) ?? [];
+
+    return {
+      ...element,
+      position: this.cloneVector(element.position),
+      size: this.cloneVector(element.size),
+      textColor: this.cloneVector(element.textColor),
+      bgColor: this.cloneVector(element.bgColor),
+      imageColor: this.cloneVector(element.imageColor),
+      buttonColorBase: this.cloneVector(element.buttonColorBase),
+      buttonColorDisabled: this.cloneVector(element.buttonColorDisabled),
+      buttonColorPressed: this.cloneVector(element.buttonColorPressed),
+      buttonColorHover: this.cloneVector(element.buttonColorHover),
+      buttonColorFocused: this.cloneVector(element.buttonColorFocused),
+      children,
+    };
+  }
+
   private generateDuplicateName(baseName: string | null | undefined, existingNames: Set<string>): string {
     const trimmed = (baseName ?? '').trim();
     const source = trimmed.length > 0 ? trimmed : 'Element';
@@ -526,6 +620,40 @@ export class UiBuilderService {
 
   private cloneVector(values: number[] | null | undefined): number[] {
     return Array.isArray(values) ? [...values] : [];
+  }
+
+  private insertCloneAtLocation(clone: UIElement, parentId: string | null, insertIndex: number): UIElement | null {
+    const parentExists = parentId ? this.findElementById(parentId) : null;
+
+    this._elements.update(elements => {
+      if (!parentId || !parentExists) {
+        const next = [...elements];
+        const clamped = this.clampIndex(insertIndex, next.length);
+        next.splice(clamped, 0, clone);
+        return next;
+      }
+
+      return this.updateElementRecursive(elements, parentId, (parent) => {
+        const currentChildren = parent.children ? [...parent.children] : [];
+        const clamped = this.clampIndex(insertIndex, currentChildren.length);
+        const nextChildren = [...currentChildren];
+        nextChildren.splice(clamped, 0, clone);
+        return {
+          ...parent,
+          children: nextChildren,
+        };
+      });
+    });
+
+    this._selectedElementId.set(clone.id);
+    return clone;
+  }
+
+  private clampIndex(index: number, length: number): number {
+    if (!Number.isFinite(index)) {
+      return length;
+    }
+    return Math.min(Math.max(index, 0), length);
   }
 
   generateExportArtifacts(): UIExportArtifacts {
@@ -550,11 +678,229 @@ export class UiBuilderService {
     return this.generateExportArtifacts().paramsJson;
   }
 
+  importFromTypescript(source: string): { success: boolean; importedCount: number; error?: string } {
+    const text = typeof source === 'string' ? source : '';
+    if (!text.trim()) {
+      return { success: false, importedCount: 0, error: 'No TypeScript content provided.' };
+    }
+
+    try {
+      const params = this.parseParseUiTypescript(text);
+
+      // Reset state before rebuilding the hierarchy
+      this.clear();
+      this._copiedElement = null;
+      this._lastSavedSignature = null;
+
+      if (!params.length) {
+        return { success: true, importedCount: 0 };
+      }
+
+      const restored = this.restoreElementsFromParams(params);
+      this._elements.set(restored);
+      this._selectedElementId.set(null);
+
+      return { success: true, importedCount: restored.length };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to import UI script.';
+      return { success: false, importedCount: 0, error: message };
+    }
+  }
+
   // Clear all elements
   clear(): void {
     this._elements.set([]);
     this._selectedElementId.set(null);
     this._nextId = 1;
+  }
+
+  private startAutoSaveTimer(): void {
+    if (!this.isBrowserEnvironment()) {
+      return;
+    }
+
+    if (this._autoSaveIntervalId !== null) {
+      window.clearInterval(this._autoSaveIntervalId);
+    }
+
+    this.saveProjectToCookie();
+    this._autoSaveIntervalId = window.setInterval(() => this.saveProjectToCookie(), AUTOSAVE_INTERVAL_MS);
+  }
+
+  private saveProjectToCookie(): void {
+    if (!this.isBrowserEnvironment()) {
+      return;
+    }
+
+    const artifacts = this.generateExportArtifacts();
+    const payload: UIPersistedPayload = {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      paramsJson: artifacts.paramsJson,
+      stringsJson: artifacts.stringsJson,
+      backgroundMode: this._canvasBackgroundMode(),
+      backgroundImage: this._canvasBackgroundImage(),
+    };
+
+    const serialized = JSON.stringify(payload);
+    if (serialized === this._lastSavedSignature) {
+      return;
+    }
+
+    if (serialized.length > 3800) {
+      console.warn('Auto-save skipped: project export exceeds cookie size limits.');
+      return;
+    }
+
+    this.setCookie(AUTOSAVE_COOKIE_NAME, serialized, AUTOSAVE_COOKIE_MAX_AGE_DAYS);
+    this._lastSavedSignature = serialized;
+  }
+
+  private restoreProjectFromCookie(): void {
+    if (!this.isBrowserEnvironment()) {
+      return;
+    }
+
+    const raw = this.getCookie(AUTOSAVE_COOKIE_NAME);
+    if (!raw) {
+      return;
+    }
+
+    try {
+      const payload = JSON.parse(raw) as UIPersistedPayload | null;
+      if (!payload || typeof payload !== 'object') {
+        return;
+      }
+
+      const params = JSON.parse(payload.paramsJson ?? '[]');
+      if (!Array.isArray(params)) {
+        return;
+      }
+
+      const restored = this.restoreElementsFromParams(params as UIParams[]);
+      this._elements.set(restored);
+      this._selectedElementId.set(null);
+
+      if (payload.backgroundMode) {
+        this.setCanvasBackgroundMode(payload.backgroundMode);
+      }
+
+      if (payload.backgroundImage) {
+        this.setCanvasBackgroundImage(payload.backgroundImage);
+      }
+
+      this._lastSavedSignature = raw;
+    } catch (error) {
+      console.error('Failed to restore project from cookie:', error);
+    }
+  }
+
+  private restoreElementsFromParams(params: UIParams[], parentId: string | null = null): UIElement[] {
+    return params.map(param => this.buildElementFromParams(param, parentId));
+  }
+
+  private buildElementFromParams(param: UIParams, parentId: string | null): UIElement {
+    const base = this.createUIElement(param.type, param.name);
+    const childParams = Array.isArray(param.children) ? param.children : [];
+
+    const element: UIElement = {
+      ...base,
+      parent: parentId,
+      name: param.name ?? base.name,
+      type: param.type ?? base.type,
+      position: this.cloneVectorWithFallback(param.position, base.position),
+      size: this.cloneVectorWithFallback(param.size, base.size),
+      anchor: param.anchor ?? base.anchor,
+      visible: typeof param.visible === 'boolean' ? param.visible : base.visible,
+      textLabel: param.textLabel ?? base.textLabel,
+      textColor: this.cloneVectorWithFallback(param.textColor, base.textColor),
+      textAlpha: this.ensureNumber(param.textAlpha, base.textAlpha),
+      textSize: this.ensureNumber(param.textSize, base.textSize),
+      textAnchor: param.textAnchor ?? base.textAnchor,
+      padding: this.ensureNumber(param.padding, base.padding),
+      bgColor: this.cloneVectorWithFallback(param.bgColor, base.bgColor),
+      bgAlpha: this.ensureNumber(param.bgAlpha, base.bgAlpha),
+      bgFill: param.bgFill ?? base.bgFill,
+      imageType: param.imageType ?? base.imageType,
+      imageColor: this.cloneVectorWithFallback(param.imageColor, base.imageColor),
+      imageAlpha: this.ensureNumber(param.imageAlpha, base.imageAlpha),
+      buttonEnabled: typeof param.buttonEnabled === 'boolean' ? param.buttonEnabled : base.buttonEnabled,
+      buttonColorBase: this.cloneVectorWithFallback(param.buttonColorBase, base.buttonColorBase),
+      buttonAlphaBase: this.ensureNumber(param.buttonAlphaBase, base.buttonAlphaBase),
+      buttonColorDisabled: this.cloneVectorWithFallback(param.buttonColorDisabled, base.buttonColorDisabled),
+      buttonAlphaDisabled: this.ensureNumber(param.buttonAlphaDisabled, base.buttonAlphaDisabled),
+      buttonColorPressed: this.cloneVectorWithFallback(param.buttonColorPressed, base.buttonColorPressed),
+      buttonAlphaPressed: this.ensureNumber(param.buttonAlphaPressed, base.buttonAlphaPressed),
+      buttonColorHover: this.cloneVectorWithFallback(param.buttonColorHover, base.buttonColorHover),
+      buttonAlphaHover: this.ensureNumber(param.buttonAlphaHover, base.buttonAlphaHover),
+      buttonColorFocused: this.cloneVectorWithFallback(param.buttonColorFocused, base.buttonColorFocused),
+      buttonAlphaFocused: this.ensureNumber(param.buttonAlphaFocused, base.buttonAlphaFocused),
+      children: [],
+    };
+
+    element.children = childParams?.length
+      ? childParams.map(child => this.buildElementFromParams(child, element.id))
+      : [];
+
+    return element;
+  }
+
+  private cloneVectorWithFallback(values: number[] | null | undefined, fallback: number[] | null | undefined): number[] {
+    if (Array.isArray(values) && values.length) {
+      return [...values];
+    }
+
+    if (Array.isArray(fallback) && fallback.length) {
+      return [...fallback];
+    }
+
+    return [];
+  }
+
+  private ensureNumber(value: number | null | undefined, fallback: number | null | undefined): number {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof fallback === 'number' && Number.isFinite(fallback)) {
+      return fallback;
+    }
+
+    return 0;
+  }
+
+  private isBrowserEnvironment(): boolean {
+    return typeof window !== 'undefined' && typeof document !== 'undefined';
+  }
+
+  private setCookie(name: string, value: string, maxAgeDays: number): void {
+    if (!this.isBrowserEnvironment()) {
+      return;
+    }
+
+    const expires = new Date(Date.now() + maxAgeDays * 24 * 60 * 60 * 1000).toUTCString();
+    document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+  }
+
+  private getCookie(name: string): string | null {
+    if (!this.isBrowserEnvironment()) {
+      return null;
+    }
+
+    const cookies = document.cookie ? document.cookie.split('; ') : [];
+    for (const cookie of cookies) {
+      const separatorIndex = cookie.indexOf('=');
+      if (separatorIndex === -1) {
+        continue;
+      }
+
+      const key = cookie.substring(0, separatorIndex);
+      if (key === name) {
+        return decodeURIComponent(cookie.substring(separatorIndex + 1));
+      }
+    }
+
+    return null;
   }
 
   private computeElementBounds(): UIElementBounds[] {
@@ -851,5 +1197,554 @@ export class UiBuilderService {
       return candidate;
     }
     return null;
+  }
+
+  private parseParseUiTypescript(source: string): UIParams[] {
+    const payload = this.extractParseUiPayload(source);
+    if (!payload) {
+      return [];
+    }
+
+    const tokens = this.tokenizeParseUiPayload(payload);
+    if (!tokens.length) {
+      return [];
+    }
+
+    const rawParams = this.parseTokensToParams(tokens);
+    return rawParams.map(param => this.normalizeParsedParam(param));
+  }
+
+  private extractParseUiPayload(source: string): string {
+    const marker = 'modlib.ParseUI';
+    const callIndex = source.indexOf(marker);
+    if (callIndex === -1) {
+      throw new Error('Could not find a modlib.ParseUI call in the provided code.');
+    }
+
+    const openIndex = source.indexOf('(', callIndex + marker.length);
+    if (openIndex === -1) {
+      throw new Error('The modlib.ParseUI call is missing its opening parenthesis.');
+    }
+
+    const length = source.length;
+    let index = openIndex + 1;
+    let depth = 1;
+    let payload = '';
+    let inString = false;
+    let stringQuote: string | null = null;
+    let escaped = false;
+
+    while (index < length) {
+      const char = source[index];
+      const nextChar = source[index + 1];
+
+      if (!inString && char === '/') {
+        if (nextChar === '/') {
+          index += 2;
+          while (index < length && source[index] !== '\n' && source[index] !== '\r') {
+            index++;
+          }
+          continue;
+        }
+
+        if (nextChar === '*') {
+          index += 2;
+          while (index < length) {
+            if (source[index] === '*' && source[index + 1] === '/') {
+              index += 2;
+              break;
+            }
+            index++;
+          }
+          continue;
+        }
+      }
+
+      if (!inString && (char === '"' || char === '\'')) {
+        inString = true;
+        stringQuote = char;
+        payload += char;
+        index++;
+        escaped = false;
+        continue;
+      }
+
+      if (inString) {
+        payload += char;
+
+        if (escaped) {
+          escaped = false;
+        } else if (char === '\\') {
+          escaped = true;
+        } else if (char === stringQuote) {
+          inString = false;
+          stringQuote = null;
+        }
+
+        index++;
+        continue;
+      }
+
+      if (char === '(') {
+        depth++;
+        payload += char;
+        index++;
+        continue;
+      }
+
+      if (char === ')') {
+        depth--;
+        if (depth === 0) {
+          break;
+        }
+        payload += char;
+        index++;
+        continue;
+      }
+
+      payload += char;
+      index++;
+    }
+
+    if (depth !== 0) {
+      throw new Error('The modlib.ParseUI call appears to have unmatched parentheses.');
+    }
+
+    return payload.trim();
+  }
+
+  private tokenizeParseUiPayload(payload: string): ParseUiToken[] {
+    const tokens: ParseUiToken[] = [];
+    const length = payload.length;
+    let index = 0;
+
+    const isWhitespace = (char: string) => char === ' ' || char === '\n' || char === '\r' || char === '\t';
+    const isDigit = (char: string) => char >= '0' && char <= '9';
+    const isIdentifierStart = (char: string) => /[A-Za-z_]/.test(char);
+    const isIdentifierPart = (char: string) => /[A-Za-z0-9_.]/.test(char);
+
+    const readString = (start: number): { value: string; nextIndex: number } => {
+      const quote = payload[start];
+      let i = start + 1;
+      let result = '';
+      let escaped = false;
+
+      while (i < length) {
+        const char = payload[i];
+
+        if (escaped) {
+          switch (char) {
+            case 'n':
+              result += '\n';
+              break;
+            case 'r':
+              result += '\r';
+              break;
+            case 't':
+              result += '\t';
+              break;
+            case '\\':
+              result += '\\';
+              break;
+            case '"':
+              result += '"';
+              break;
+            case '\'':
+              result += '\'';
+              break;
+            default:
+              result += char;
+          }
+          escaped = false;
+          i++;
+          continue;
+        }
+
+        if (char === '\\') {
+          escaped = true;
+          i++;
+          continue;
+        }
+
+        if (char === quote) {
+          return { value: result, nextIndex: i + 1 };
+        }
+
+        result += char;
+        i++;
+      }
+
+      throw new Error(`Unterminated string literal starting at position ${start}.`);
+    };
+
+    const readNumber = (start: number): { value: number; nextIndex: number } => {
+      let i = start;
+      let hasDigit = false;
+
+      if (payload[i] === '-') {
+        i++;
+      }
+
+      while (i < length && isDigit(payload[i])) {
+        i++;
+        hasDigit = true;
+      }
+
+      if (i < length && payload[i] === '.') {
+        i++;
+        while (i < length && isDigit(payload[i])) {
+          i++;
+          hasDigit = true;
+        }
+      }
+
+      if (!hasDigit) {
+        throw new Error(`Invalid number literal at position ${start}.`);
+      }
+
+      const rawValue = payload.slice(start, i);
+      const numericValue = Number(rawValue);
+      if (!Number.isFinite(numericValue)) {
+        throw new Error(`Numeric literal out of range at position ${start}.`);
+      }
+
+      return { value: numericValue, nextIndex: i };
+    };
+
+    const readIdentifier = (start: number): { value: string; nextIndex: number } => {
+      let i = start;
+      while (i < length && isIdentifierPart(payload[i])) {
+        i++;
+      }
+      return { value: payload.slice(start, i), nextIndex: i };
+    };
+
+    while (index < length) {
+      const char = payload[index];
+
+      if (isWhitespace(char)) {
+        index++;
+        continue;
+      }
+
+      const position = index;
+
+      if (char === '{') {
+        tokens.push({ type: 'braceOpen', position });
+        index++;
+        continue;
+      }
+
+      if (char === '}') {
+        tokens.push({ type: 'braceClose', position });
+        index++;
+        continue;
+      }
+
+      if (char === '[') {
+        tokens.push({ type: 'bracketOpen', position });
+        index++;
+        continue;
+      }
+
+      if (char === ']') {
+        tokens.push({ type: 'bracketClose', position });
+        index++;
+        continue;
+      }
+
+      if (char === ':') {
+        tokens.push({ type: 'colon', position });
+        index++;
+        continue;
+      }
+
+      if (char === ',') {
+        tokens.push({ type: 'comma', position });
+        index++;
+        continue;
+      }
+
+      if (char === '"' || char === '\'') {
+        const { value, nextIndex } = readString(index);
+        tokens.push({ type: 'string', value, raw: payload.slice(index, nextIndex), position });
+        index = nextIndex;
+        continue;
+      }
+
+      if (char === '-' || isDigit(char)) {
+        const { value, nextIndex } = readNumber(index);
+        tokens.push({ type: 'number', value, raw: payload.slice(index, nextIndex), position });
+        index = nextIndex;
+        continue;
+      }
+
+      if (isIdentifierStart(char)) {
+        const { value, nextIndex } = readIdentifier(index);
+        tokens.push({ type: 'identifier', value, raw: value, position });
+        index = nextIndex;
+        continue;
+      }
+
+      throw new Error(`Unexpected character '${char}' at position ${position} while parsing modlib.ParseUI payload.`);
+    }
+
+    return tokens;
+  }
+
+  private parseTokensToParams(tokens: ParseUiToken[]): Record<string, unknown>[] {
+    const results: Record<string, unknown>[] = [];
+    let index = 0;
+
+    const peek = () => tokens[index] ?? null;
+    const consume = () => tokens[index++] ?? null;
+    const expect = (type: ParseUiTokenType): ParseUiToken => {
+      const token = consume();
+      if (!token || token.type !== type) {
+        throw new Error(`Unexpected token while parsing ParseUI payload. Expected ${type}.`);
+      }
+      return token;
+    };
+
+    const parseValue = (): unknown => {
+      const token = peek();
+      if (!token) {
+        throw new Error('Unexpected end of ParseUI payload.');
+      }
+
+      switch (token.type) {
+        case 'braceOpen':
+          return parseObject();
+        case 'bracketOpen':
+          return parseArray();
+        case 'string':
+          consume();
+          return token.value ?? '';
+        case 'number':
+          consume();
+          return token.value ?? 0;
+        case 'identifier':
+          consume();
+          return this.resolveIdentifierToken(token.value as string);
+        default:
+          throw new Error(`Unsupported token type ${token.type} encountered.`);
+      }
+    };
+
+    const parseObject = (): Record<string, unknown> => {
+      expect('braceOpen');
+      const result: Record<string, unknown> = {};
+      let expectComma = false;
+
+      while (true) {
+        const next = peek();
+        if (!next) {
+          throw new Error('Unterminated object literal in ParseUI payload.');
+        }
+
+        if (next.type === 'braceClose') {
+          consume();
+          break;
+        }
+
+        if (expectComma) {
+          if (next.type !== 'comma') {
+            throw new Error('Missing comma between object properties in ParseUI payload.');
+          }
+          consume();
+        }
+
+        const keyToken = expect('identifier');
+        const key = keyToken.value as string;
+        expect('colon');
+        const value = parseValue();
+        result[key] = value;
+        expectComma = true;
+      }
+
+      return result;
+    };
+
+    const parseArray = (): unknown[] => {
+      expect('bracketOpen');
+      const items: unknown[] = [];
+      let expectComma = false;
+
+      while (true) {
+        const next = peek();
+        if (!next) {
+          throw new Error('Unterminated array literal in ParseUI payload.');
+        }
+
+        if (next.type === 'bracketClose') {
+          consume();
+          break;
+        }
+
+        if (expectComma) {
+          if (next.type !== 'comma') {
+            throw new Error('Missing comma between array items in ParseUI payload.');
+          }
+          consume();
+        }
+
+        const value = parseValue();
+        items.push(value);
+        expectComma = true;
+      }
+
+      return items;
+    };
+
+    while (index < tokens.length) {
+      const value = parseValue();
+      if (!value || typeof value !== 'object' || Array.isArray(value)) {
+        throw new Error('modlib.ParseUI arguments must be object literals.');
+      }
+      results.push(value as Record<string, unknown>);
+
+      const next = peek();
+      if (!next) {
+        break;
+      }
+
+      if (next.type === 'comma') {
+        consume();
+        continue;
+      }
+
+      throw new Error('Expected a comma between modlib.ParseUI arguments.');
+    }
+
+    return results;
+  }
+
+  private resolveIdentifierToken(identifier: string): unknown {
+    switch (identifier) {
+      case 'true':
+        return true;
+      case 'false':
+        return false;
+      case 'null':
+        return null;
+      default:
+        break;
+    }
+
+    if (identifier.startsWith('mod.UIAnchor.')) {
+      const key = identifier.substring('mod.UIAnchor.'.length);
+      return this.lookupEnumValue('UIAnchor', UIAnchor, key);
+    }
+
+    if (identifier.startsWith('mod.UIBgFill.')) {
+      const key = identifier.substring('mod.UIBgFill.'.length);
+      return this.lookupEnumValue('UIBgFill', UIBgFill, key);
+    }
+
+    if (identifier.startsWith('mod.UIImageType.')) {
+      const key = identifier.substring('mod.UIImageType.'.length);
+      return this.lookupEnumValue('UIImageType', UIImageType, key);
+    }
+
+    if (identifier.startsWith('mod.stringkeys.')) {
+      return identifier;
+    }
+
+    if (identifier === 'undefined') {
+      return undefined;
+    }
+
+    if (identifier.startsWith('mod.')) {
+      throw new Error(`Unsupported identifier '${identifier}' encountered during ParseUI import.`);
+    }
+
+    return identifier;
+  }
+
+  private lookupEnumValue(enumName: string, enumRef: any, key: string): number {
+    if (!key) {
+      throw new Error(`Missing ${enumName} member name in ParseUI import.`);
+    }
+
+    const value = enumRef[key as keyof typeof enumRef];
+    if (typeof value !== 'number') {
+      throw new Error(`Unknown ${enumName} member '${key}' in ParseUI import.`);
+    }
+
+    return value;
+  }
+
+  private normalizeParsedParam(raw: Record<string, unknown>): UIParams {
+    const defaults = DEFAULT_UI_PARAMS;
+    const node = raw as Record<string, unknown>;
+    const childrenInput = Array.isArray(node['children']) ? (node['children'] as unknown[]) : [];
+    const buttonEnabled = typeof node['buttonEnabled'] === 'boolean'
+      ? (node['buttonEnabled'] as boolean)
+      : !!defaults.buttonEnabled;
+
+    const normalized: UIParams = {
+      parent: null,
+      name: this.ensureString(node['name']),
+      type: this.ensureElementType(node['type']),
+      position: this.cloneVectorWithFallback(node['position'] as number[] | null | undefined, defaults.position),
+      size: this.cloneVectorWithFallback(node['size'] as number[] | null | undefined, defaults.size),
+      anchor: this.ensureEnumNumber(node['anchor'], UIAnchor, defaults.anchor ?? UIAnchor.TopLeft),
+      visible: typeof node['visible'] === 'boolean' ? (node['visible'] as boolean) : (typeof defaults.visible === 'boolean' ? defaults.visible : true),
+      textLabel: typeof node['textLabel'] === 'string' ? (node['textLabel'] as string) : (defaults.textLabel ?? ''),
+      textColor: this.cloneVectorWithFallback(node['textColor'] as number[] | null | undefined, defaults.textColor),
+      textAlpha: this.ensureNumber(node['textAlpha'] as number | null | undefined, defaults.textAlpha),
+      textSize: this.ensureNumber(node['textSize'] as number | null | undefined, defaults.textSize),
+      textAnchor: this.ensureEnumNumber(node['textAnchor'], UIAnchor, defaults.textAnchor ?? UIAnchor.Center),
+      padding: this.ensureNumber(node['padding'] as number | null | undefined, defaults.padding),
+      bgColor: this.cloneVectorWithFallback(node['bgColor'] as number[] | null | undefined, defaults.bgColor),
+      bgAlpha: this.ensureNumber(node['bgAlpha'] as number | null | undefined, defaults.bgAlpha),
+      bgFill: this.ensureEnumNumber(node['bgFill'], UIBgFill, defaults.bgFill ?? UIBgFill.None),
+      imageType: this.ensureEnumNumber(node['imageType'], UIImageType, defaults.imageType ?? UIImageType.None),
+      imageColor: this.cloneVectorWithFallback(node['imageColor'] as number[] | null | undefined, defaults.imageColor),
+      imageAlpha: this.ensureNumber(node['imageAlpha'] as number | null | undefined, defaults.imageAlpha),
+      buttonEnabled,
+      buttonColorBase: this.cloneVectorWithFallback(node['buttonColorBase'] as number[] | null | undefined, defaults.buttonColorBase),
+      buttonAlphaBase: this.ensureNumber(node['buttonAlphaBase'] as number | null | undefined, defaults.buttonAlphaBase),
+      buttonColorDisabled: this.cloneVectorWithFallback(node['buttonColorDisabled'] as number[] | null | undefined, defaults.buttonColorDisabled),
+      buttonAlphaDisabled: this.ensureNumber(node['buttonAlphaDisabled'] as number | null | undefined, defaults.buttonAlphaDisabled),
+      buttonColorPressed: this.cloneVectorWithFallback(node['buttonColorPressed'] as number[] | null | undefined, defaults.buttonColorPressed),
+      buttonAlphaPressed: this.ensureNumber(node['buttonAlphaPressed'] as number | null | undefined, defaults.buttonAlphaPressed),
+      buttonColorHover: this.cloneVectorWithFallback(node['buttonColorHover'] as number[] | null | undefined, defaults.buttonColorHover),
+      buttonAlphaHover: this.ensureNumber(node['buttonAlphaHover'] as number | null | undefined, defaults.buttonAlphaHover),
+      buttonColorFocused: this.cloneVectorWithFallback(node['buttonColorFocused'] as number[] | null | undefined, defaults.buttonColorFocused),
+      buttonAlphaFocused: this.ensureNumber(node['buttonAlphaFocused'] as number | null | undefined, defaults.buttonAlphaFocused),
+      children: childrenInput.map(child => this.normalizeParsedParam(child as Record<string, unknown>)),
+    };
+
+    return normalized;
+  }
+
+  private ensureElementType(value: unknown): UIElementTypes {
+    if (value === 'Container' || value === 'Text' || value === 'Image' || value === 'Button') {
+      return value;
+    }
+    return 'Container';
+  }
+
+  private ensureString(value: unknown): string {
+    if (typeof value === 'string' && value.length > 0) {
+      return value;
+    }
+    return 'ImportedElement';
+  }
+
+  private ensureEnumNumber(value: unknown, enumRef: any, fallback: number): number {
+    if (typeof value === 'number' && enumRef[value] !== undefined) {
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const mapped = enumRef[value as keyof typeof enumRef];
+      if (typeof mapped === 'number') {
+        return mapped;
+      }
+    }
+
+    return fallback;
   }
 }

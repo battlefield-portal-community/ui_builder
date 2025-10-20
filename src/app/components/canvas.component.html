@@ -28,12 +28,13 @@
       }
     </div>
 
-    @for (element of elements(); track element.id) {
+    <ng-template #elementTemplate let-element let-parent="parent">
       <div 
         class="ui-element"
+        [class.child-element]="!!parent"
         [class.selected]="element.id === selectedElementId()"
         [class.dragging]="isDragging && dragElement?.id === element.id"
-        [style]="getElementStyle(element)"
+        [style]="getElementStyle(element, parent)"
         (click)="onElementClick($event, element.id)"
         (mousedown)="onElementMouseDown($event, element.id)"
       >
@@ -61,7 +62,7 @@
             }
           }
         </div>
-        
+
         <!-- Resize handles for selected elements -->
         @if (element.id === selectedElementId()) {
           <div class="resize-handle resize-handle-right" 
@@ -71,54 +72,20 @@
           <div class="resize-handle resize-handle-corner" 
                (mousedown)="onResizeStart($event, element.id, 'corner')"></div>
         }
-        
-        <!-- Child elements -->
-        @for (child of element.children; track child.id) {
-          <div 
-            class="ui-element child-element"
-            [class.selected]="child.id === selectedElementId()"
-            [class.dragging]="isDragging && dragElement?.id === child.id"
-            [style]="getElementStyle(child, element)"
-            (click)="onElementClick($event, child.id)"
-            (mousedown)="onElementMouseDown($event, child.id)"
-          >
-            <div class="element-content">
-              @switch (child.type) {
-                @case ('Container') {
-                  <div class="container-content" [style]="getBackgroundStyle(child)">
-                    {{child.name}}
-                  </div>
-                }
-                @case ('Text') {
-                  <div class="text-content" [style]="getTextStyle(child)">
-                    {{child.textLabel || child.name}}
-                  </div>
-                }
-                @case ('Image') {
-                  <div class="image-content" [style]="getImageStyle(child)">
-                    <span class="image-placeholder">{{child.imageType}}</span>
-                  </div>
-                }
-                @case ('Button') {
-                  <button class="button-content" [style]="getButtonStyle(child)">
-                    {{child.textLabel || child.name}}
-                  </button>
-                }
-              }
-            </div>
-            
-            <!-- Resize handles for selected child elements -->
-            @if (child.id === selectedElementId()) {
-              <div class="resize-handle resize-handle-right" 
-                   (mousedown)="onResizeStart($event, child.id, 'right')"></div>
-              <div class="resize-handle resize-handle-bottom" 
-                   (mousedown)="onResizeStart($event, child.id, 'bottom')"></div>
-              <div class="resize-handle resize-handle-corner" 
-                   (mousedown)="onResizeStart($event, child.id, 'corner')"></div>
-            }
-          </div>
+
+        <!-- Nested child elements -->
+        @for (child of element.children ?? []; track child.id) {
+          <ng-container 
+            *ngTemplateOutlet="elementTemplate; context: {$implicit: child, parent: element}"
+          ></ng-container>
         }
       </div>
+    </ng-template>
+
+    @for (element of elements(); track element.id) {
+      <ng-container 
+        *ngTemplateOutlet="elementTemplate; context: {$implicit: element, parent: null}"
+      ></ng-container>
     }
   </div>
 </div>

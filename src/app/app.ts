@@ -3,10 +3,11 @@ import { RouterOutlet } from '@angular/router';
 import { SideMenuComponent } from './components/side-menu.component';
 import { CanvasComponent } from './components/canvas.component';
 import { PropertiesEditorComponent } from './components/properties-editor.component';
+import { HeaderBarComponent } from './components/header-bar.component';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, SideMenuComponent, CanvasComponent, PropertiesEditorComponent],
+  imports: [RouterOutlet, HeaderBarComponent, SideMenuComponent, CanvasComponent, PropertiesEditorComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })

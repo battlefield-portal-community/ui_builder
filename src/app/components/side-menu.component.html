@@ -1,116 +1,7 @@
 <div class="side-menu">
   <div class="menu-header">
     <h3>UI Builder</h3>
-  </div>
-
-  <!-- Canvas Background -->
-  <div class="menu-section">
-    <h4>Canvas Background</h4>
-    <div class="background-mode-options">
-      <label class="background-mode-option">
-        <input
-          type="radio"
-          name="canvas-background-mode"
-          [checked]="backgroundMode() === 'black'"
-          (change)="setBackgroundMode('black')"
-        />
-        <span class="background-mode-label">
-          <span class="mode-swatch mode-swatch--black"></span>
-          Black
-        </span>
-      </label>
-      <label class="background-mode-option">
-        <input
-          type="radio"
-          name="canvas-background-mode"
-          [checked]="backgroundMode() === 'white'"
-          (change)="setBackgroundMode('white')"
-        />
-        <span class="background-mode-label">
-          <span class="mode-swatch mode-swatch--white"></span>
-          White
-        </span>
-      </label>
-      <label class="background-mode-option">
-        <input
-          type="radio"
-          name="canvas-background-mode"
-          [checked]="backgroundMode() === 'image'"
-          (change)="setBackgroundMode('image')"
-        />
-        <span class="background-mode-label">
-          <span class="mode-swatch mode-swatch--image"></span>
-          Image
-        </span>
-      </label>
-    </div>
-
-    @if (backgroundMode() === 'image') {
-      <div class="background-image-picker">
-        <label class="background-upload">
-          <input
-            class="background-upload__input"
-            type="file"
-            accept="image/*"
-            multiple
-            (change)="onBackgroundImageUpload($event)"
-          />
-          <span class="background-upload__icon">⬆️</span>
-          <span class="background-upload__text">Upload background image</span>
-        </label>
-
-        <div
-          class="background-image-grid"
-          [class.background-image-grid--empty]="backgroundImages().length === 0"
-        >
-          <button
-            type="button"
-            class="background-image-tile"
-            [class.selected]="isBackgroundImageSelected(defaultBackgroundImage.id)"
-            (click)="setBackgroundImage(defaultBackgroundImage.id)"
-            [title]="defaultBackgroundImage.fileName"
-          >
-            <span class="background-image-badge">Default</span>
-            <span
-              class="background-image-preview"
-              [style.background-image]="'url(' + defaultBackgroundImage.url + ')'"
-            ></span>
-            <span class="background-image-label">{{defaultBackgroundImage.label}}</span>
-          </button>
-
-          @for (image of backgroundImages(); track image.id) {
-            <button
-              type="button"
-              class="background-image-tile"
-              [class.selected]="isBackgroundImageSelected(image.id)"
-              (click)="setBackgroundImage(image.id)"
-              [title]="image.fileName"
-            >
-              <span
-                class="background-image-preview"
-                [style.background-image]="'url(' + image.url + ')'"
-              ></span>
-              <span class="background-image-label">{{image.label}}</span>
-            </button>
-          }
-        </div>
-
-        @if (backgroundImages().length === 0) {
-          <div class="background-empty">
-            Uploaded images will appear here. You can also reference assets by path in the service.
-          </div>
-        }
-      </div>
-    } @else {
-      <div class="background-solid-preview">
-        <span
-          class="solid-preview"
-          [class.solid-preview--black]="backgroundMode() === 'black'"
-          [class.solid-preview--white]="backgroundMode() === 'white'"
-        ></span>
-        <span class="solid-preview-label">{{backgroundMode() | titlecase}} background active</span>
-      </div>
-    }
+    <span class="menu-subtitle">Element library</span>
   </div>
 
   <!-- Add Element Section -->
@@ -212,13 +103,6 @@
         📋 Duplicate selected element
       </button>
       <button 
-        class="action-button export-btn"
-        (click)="exportJson()"
-        [disabled]="elements().length === 0"
-      >
-        📄 Export JSON
-      </button>
-      <button 
         class="action-button clear-btn"
         (click)="clearAll()"
         [disabled]="elements().length === 0"
@@ -227,39 +111,4 @@
       </button>
     </div>
   </div>
-
-  @if (exportModalOpen()) {
-    @if (exportArtifacts(); as artifacts) {
-      <div class="export-modal-backdrop" (click)="closeExportModal()">
-        <div class="export-modal" (click)="$event.stopPropagation()">
-          <div class="export-modal__header">
-            <h4>Export UI Artifacts</h4>
-            <button type="button" class="export-modal__close" (click)="closeExportModal()">✖</button>
-          </div>
-          <div class="export-modal__body">
-            <section class="export-section">
-              <div class="export-section__header">
-                <h5>TypeScript Snippet</h5>
-                <div class="export-section__actions">
-                  <button type="button" (click)="copyExportContent('typescript')">Copy</button>
-                  <button type="button" (click)="downloadExportContent('typescript')">Download</button>
-                </div>
-              </div>
-              <pre class="export-section__code">{{artifacts.typescriptCode}}</pre>
-            </section>
-            <section class="export-section">
-              <div class="export-section__header">
-                <h5>Strings JSON</h5>
-                <div class="export-section__actions">
-                  <button type="button" (click)="copyExportContent('strings')">Copy</button>
-                  <button type="button" (click)="downloadExportContent('strings')">Download</button>
-                </div>
-              </div>
-              <pre class="export-section__code">{{artifacts.stringsJson}}</pre>
-            </section>
-          </div>
-        </div>
-      </div>
-    }
-  }
 </div>

@@ -1,0 +1,260 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.header-bar {
+  background: #1f1f1f;
+  border-bottom: 1px solid #333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 5px 18px;
+  color: #f1f1f1;
+  flex-wrap: nowrap;
+}
+
+.background-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.action-button {
+  padding: 5px 16px;
+  border: 2px solid #555;
+  border-radius: 6px;
+  background: #6bbae5;
+  color: #fff;
+  cursor: pointer;
+  font-size: 18px;
+  transition: all 0.2s ease;
+}
+
+.action-button:hover:not(:disabled) {
+  background: #373737;
+  border-color: #4a9eff;
+}
+
+.action-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.background-mode {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.background-mode__label {
+  font-size: 13px;
+  color: #d1d5db;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  color: #e5e7eb;
+}
+
+.mode-option input {
+  accent-color: #4a9eff;
+}
+
+.mode-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid #3b3b3b;
+  background: #2a2a2a;
+  color: inherit;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.mode-option:hover .mode-pill {
+  border-color: #4a9eff;
+}
+
+.mode-pill--black::before,
+.mode-pill--white::before,
+.mode-pill--image::before {
+  content: '';
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid #4b5563;
+}
+
+.mode-pill--black::before {
+  background: #000;
+}
+
+.mode-pill--white::before {
+  background: #fff;
+}
+
+.mode-pill--image::before {
+  background: linear-gradient(135deg, #2a2a2a 25%, #4a9eff 25%, #4a9eff 50%, #2a2a2a 50%, #2a2a2a 75%, #4a9eff 75%, #4a9eff 100%);
+  background-size: 12px 12px;
+}
+
+.background-image-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+}
+
+.background-upload {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px dashed #4b5563;
+  border-radius: 8px;
+  background: #2b2b2b;
+  color: #d1d5db;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.background-upload:hover {
+  border-color: #4a9eff;
+  background: #323232;
+}
+
+.background-upload__input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.background-carousel {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+}
+
+.background-tile {
+  position: relative;
+  width: 88px;
+  flex: 0 0 auto;
+  border-radius: 6px;
+  border: 1px solid #444;
+  background: #2f2f2f;
+  color: #e5e7eb;
+  padding: 8px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.background-tile:hover {
+  border-color: #4a9eff;
+  background: #363636;
+}
+
+.background-tile.selected {
+  border-color: #ff8a3d;
+  box-shadow: 0 0 0 1px #ff8a3d;
+}
+
+.background-tile__preview {
+  width: 100%;
+  padding-top: 70%;
+  border-radius: 4px;
+  border: 1px solid #3f3f3f;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.background-tile__label {
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
+}
+
+.background-tile__badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  padding: 2px 6px;
+  font-size: 10px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #ffb347;
+}
+
+.background-empty {
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #9ca3af;
+  border: 1px dashed #444;
+  border-radius: 6px;
+  background: #252525;
+}
+
+.background-solid {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: #d1d5db;
+}
+
+.solid-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  border: 1px solid #4b5563;
+  background: #000;
+}
+
+.solid-swatch--white {
+  background: #fff;
+}
+
+@media (max-width: 960px) {
+  .header-bar {
+    flex-wrap: wrap;
+    gap: 16px;
+    padding: 10px 16px;
+  }
+
+  .background-controls {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
