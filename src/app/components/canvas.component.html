@@ -34,6 +34,7 @@
         [class.child-element]="!!parent"
         [class.selected]="element.id === selectedElementId()"
         [class.dragging]="isDragging && dragElement?.id === element.id"
+        [class.locked]="element.locked"
         [style]="getElementStyle(element, parent)"
         (click)="onElementClick($event, element.id)"
         (mousedown)="onElementMouseDown($event, element.id)"
@@ -63,8 +64,12 @@
           }
         </div>
 
+        @if (element.locked) {
+          <div class="element-lock-indicator" title="Element is locked">🔒</div>
+        }
+
         <!-- Resize handles for selected elements -->
-        @if (element.id === selectedElementId()) {
+        @if (element.id === selectedElementId() && !element.locked) {
           <div class="resize-handle resize-handle-right" 
                (mousedown)="onResizeStart($event, element.id, 'right')"></div>
           <div class="resize-handle resize-handle-bottom" 

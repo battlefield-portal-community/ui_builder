@@ -54,7 +54,7 @@
         <div class="empty-state">No elements yet</div>
       } @else {
         @for (item of getFlattenedElements(); track item.element.id) {
-          <div class="tree-element" [class.selected]="item.element.id === selectedElementId()">
+          <div class="tree-element" [class.selected]="item.element.id === selectedElementId()" [class.locked]="item.element.locked">
             <div 
               class="element-item"
               (click)="selectElement(item.element.id)"
@@ -62,8 +62,20 @@
             >
               <span class="child-indicator">{{getIndentIndicator(item.level)}}</span>
               <span class="element-icon">{{getElementIcon(item.element.type)}}</span>
-              <span class="element-name">{{item.element.name}}</span>
+              <span class="element-name">
+                {{item.element.name}}
+                @if (item.element.locked) {
+                  <span class="element-lock-label">(Locked)</span>
+                }
+              </span>
               <div class="element-actions">
+                <button
+                  class="action-btn lock-btn"
+                  (click)="toggleElementLock($event, item.element)"
+                  [title]="item.element.locked ? 'Unlock element' : 'Lock element'"
+                >
+                  {{ item.element.locked ? '🔓' : '🔒' }}
+                </button>
                 <button
                   class="action-btn move-btn"
                   (click)="moveElement($event, item.element.id, 'up')"

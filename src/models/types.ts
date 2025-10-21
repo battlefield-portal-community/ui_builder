@@ -85,12 +85,15 @@ export interface UIParams {
 // Extended interface for internal use with ID and selection
 export interface UIElement extends UIParams {
     id: string;
+    locked: boolean;
     children?: UIElement[];
 }
 
 // Default values for new elements
-export const DEFAULT_UI_PARAMS: Partial<UIParams> = {
+export const DEFAULT_UI_PARAMS: Partial<UIElement> = {
     parent: null,
+
+    locked: false,
 
     position: [0, 0],
     size: [100, 50],

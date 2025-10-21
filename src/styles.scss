@@ -268,6 +268,41 @@ html, body {
   font-size: 14px;
 }
 
+.export-section__header--toggle {
+  align-items: stretch;
+  gap: 12px;
+}
+
+.export-section__heading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.export-mode-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  text-transform: none;
+  letter-spacing: 0.3px;
+}
+
+.export-mode-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #cbd5f5;
+}
+
+.export-mode-option input {
+  accent-color: #4a9eff;
+}
+
+.export-mode-option span {
+  font-weight: 500;
+}
+
 .export-section__actions {
   display: flex;
   gap: 8px;
@@ -300,6 +335,87 @@ html, body {
   border-bottom-left-radius: 6px;
   border-bottom-right-radius: 6px;
   overflow-x: auto;
+}
+
+.export-snippet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 20px;
+}
+
+.export-snippet-card {
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.3);
+  overflow: hidden;
+}
+
+.export-snippet-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid #333;
+}
+
+.export-snippet-card__title {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.export-snippet-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #f3f4f6;
+  letter-spacing: 0.3px;
+}
+
+.export-snippet-card__variable {
+  font-size: 11px;
+  color: #9ca3af;
+  font-family: 'Fira Code', 'Source Code Pro', monospace;
+}
+
+.export-snippet-card__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.export-snippet-card__actions button {
+  background: #3a3a3a;
+  border: 1px solid #555;
+  border-radius: 4px;
+  color: #fff;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.export-snippet-card__actions button:hover {
+  background: #4a4a4a;
+  border-color: #4a9eff;
+}
+
+.export-snippet-card__code {
+  margin: 0;
+  padding: 16px;
+  font-family: 'Fira Code', 'Source Code Pro', monospace;
+  font-size: 12px;
+  color: #9cdcfe;
+  white-space: pre-wrap;
+  overflow-x: auto;
+}
+
+.export-section__empty {
+  padding: 20px;
+  font-size: 12px;
+  color: #9ca3af;
+  letter-spacing: 0.3px;
 }
 
 .action-button {

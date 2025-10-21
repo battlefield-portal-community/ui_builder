@@ -1,6 +1,10 @@
 import { Component, OnDestroy, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { UiBuilderService, UIExportArtifacts } from '../services/ui-builder.service';
+import {
+  UiBuilderService,
+  UIExportArtifacts,
+  UIExportSnippet,
+} from '../services/ui-builder.service';
 import { CanvasBackgroundAsset, CanvasBackgroundMode } from '../../models/types';
 
 type BannerMessage = { type: 'success' | 'error'; text: string };
@@ -25,6 +29,7 @@ export class HeaderBarComponent implements OnDestroy {
 
   readonly exportModalOpen = signal(false);
   readonly exportArtifacts = signal<UIExportArtifacts | null>(null);
+  readonly exportMode = signal<'combined' | 'split'>('combined');
   readonly importModalOpen = signal(false);
   readonly importSource = signal('');
   readonly importError = signal<string | null>(null);
@@ -74,16 +79,26 @@ export class HeaderBarComponent implements OnDestroy {
 
     const artifacts = this.uiBuilder.generateExportArtifacts();
     this.exportArtifacts.set(artifacts);
+    this.exportMode.set('combined');
     this.exportModalOpen.set(true);
   }
 
   closeExportModal() {
     this.exportModalOpen.set(false);
+    this.exportMode.set('combined');
+  }
+
+  setExportMode(mode: 'combined' | 'split') {
+    this.exportMode.set(mode);
   }
 
   async copyExportContent(section: 'typescript' | 'strings') {
     const artifacts = this.exportArtifacts();
     if (!artifacts) {
+      return;
+    }
+
+    if (section === 'typescript' && this.exportMode() === 'split') {
       return;
     }
 
@@ -102,19 +117,28 @@ export class HeaderBarComponent implements OnDestroy {
       return;
     }
 
+    if (section === 'typescript' && this.exportMode() === 'split') {
+      return;
+    }
+
     const content = section === 'typescript' ? artifacts.typescriptCode : artifacts.stringsJson;
     const filename = section === 'typescript' ? 'ui-export.ts' : 'ui-strings.json';
     const type = section === 'typescript' ? 'text/plain' : 'application/json';
 
-    const blob = new Blob([content], { type });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    this.triggerDownload(content, filename, type);
+  }
+
+  async copySnippet(snippet: UIExportSnippet) {
+    try {
+      await navigator.clipboard.writeText(snippet.code);
+    } catch (error) {
+      console.error('Failed to copy snippet:', error);
+    }
+  }
+
+  downloadSnippet(snippet: UIExportSnippet) {
+    const filename = `${snippet.variableName}.ts`;
+    this.triggerDownload(snippet.code, filename, 'text/plain');
   }
 
   openImportModal() {
@@ -208,5 +232,17 @@ export class HeaderBarComponent implements OnDestroy {
       window.clearTimeout(this.bannerTimeout);
       this.bannerTimeout = null;
     }
+  }
+
+  private triggerDownload(content: string, filename: string, type: string) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 }

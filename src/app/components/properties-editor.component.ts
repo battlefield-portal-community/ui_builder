@@ -74,6 +74,15 @@ export class PropertiesEditorComponent {
 
   constructor(private uiBuilder: UiBuilderService) {}
 
+  toggleLock(element: UIElement, event: Event) {
+    const input = event.target as HTMLInputElement | null;
+    if (!input) {
+      return;
+    }
+
+    this.uiBuilder.setElementLocked(element.id, input.checked);
+  }
+
   updateProperty(property: string, event: any) {
     const element = this.selectedElement();
     if (!element) return;

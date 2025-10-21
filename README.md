@@ -30,6 +30,7 @@ BfUiBuilder is a browser-based layout designer for Battlefield Portal user inter
 - Ability to add sub elements to a text container (need to test in game if that's legal)
 - Some UI scrollbars shouldn't be visible (general responsiveness)
 - Zooming breaks element positionning
+  - background zooming and canvas zooming don't have the same zoom ratios
 
 ## Getting started
 
