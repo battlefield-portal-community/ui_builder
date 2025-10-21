@@ -119,7 +119,7 @@
       </div>
 
       <!-- Text Properties -->
-      @if (element.type === 'Text' || element.type === 'Button') {
+      @if (element.type === 'Text') {
         <div class="property-group">
           <h4>Text</h4>
           
@@ -144,7 +144,7 @@
           </div>
           
           <div class="property-row">
-            <label>Recommended Colors: <br>
+            <label>Text Color: <br>
             <a href="https://www.figma.com/design/jLoYZpZ0HFwJqAbhlMATgn/BF6-UI?node-id=0-1&p=f" target="_blank">Design sheet</a>
             </label>
             <div class="color-input">
@@ -173,7 +173,7 @@
           </div>
           
           <div class="property-row">
-            <label>Text Alpha:</label>
+            <label>Text Alpha (transparency):</label>
             <input 
               type="number" 
               [value]="element.textAlpha"
@@ -199,64 +199,62 @@
       }
 
       <!-- Background Properties -->
-      @if (element.type !== 'Text') {
-        <div class="property-group">
-          <h4>Background</h4>
-          
-          <div class="property-row">
-            <label>Recommended Colors: <br>
-              <a href="https://www.figma.com/design/jLoYZpZ0HFwJqAbhlMATgn/BF6-UI?node-id=0-1&p=f" target="_blank">Design sheet</a>
-            </label>
-            <div class="color-input">
-              <div class="color-palette">
-                @for (color of colorPalette; track color) {
-                  <button
-                    type="button"
-                    class="color-swatch"
-                    [class.selected]="isPaletteColorSelected(element.bgColor, color)"
-                    [style.background-color]="color"
-                    (click)="setColorProperty('bgColor', color)"
-                    [attr.aria-label]="'Set background color to ' + color"
-                  ></button>
-                }
-              </div>
-              <div class="color-picker-group">
-                <input
-                  type="color"
-                  [value]="colorArrayToHex(element.bgColor)"
-                  (input)="onColorPickerChange('bgColor', $event)"
-                />
-                <span class="color-value">{{ colorArrayToHex(element.bgColor) }}</span>
-                <div class="color-preview" [style.background-color]="getColorPreview(element.bgColor)"></div>
-              </div>
+      <div class="property-group">
+        <h4>Background</h4>
+        
+        <div class="property-row">
+          <label>Background Color: <br>
+            <a href="https://www.figma.com/design/jLoYZpZ0HFwJqAbhlMATgn/BF6-UI?node-id=0-1&p=f" target="_blank">Design sheet</a>
+          </label>
+          <div class="color-input">
+            <div class="color-palette">
+              @for (color of colorPalette; track color) {
+                <button
+                  type="button"
+                  class="color-swatch"
+                  [class.selected]="isPaletteColorSelected(element.bgColor, color)"
+                  [style.background-color]="color"
+                  (click)="setColorProperty('bgColor', color)"
+                  [attr.aria-label]="'Set background color to ' + color"
+                ></button>
+              }
+            </div>
+            <div class="color-picker-group">
+              <input
+                type="color"
+                [value]="colorArrayToHex(element.bgColor)"
+                (input)="onColorPickerChange('bgColor', $event)"
+              />
+              <span class="color-value">{{ colorArrayToHex(element.bgColor) }}</span>
+              <div class="color-preview" [style.background-color]="getColorPreview(element.bgColor)"></div>
             </div>
           </div>
-          
-          <div class="property-row">
-            <label>Background Alpha:</label>
-            <input 
-              type="number" 
-              [value]="element.bgAlpha"
-              (input)="updateProperty('bgAlpha', $event)"
-              min="0"
-              max="1"
-              step="0.1"
-            />
-          </div>
-          
-          <div class="property-row">
-            <label>Background Fill:</label>
-            <select 
-              [value]="element.bgFill"
-              (change)="updateProperty('bgFill', $event)"
-            >
-              @for (fill of bgFillOptions; track fill.value) {
-                <option [value]="fill.value">{{fill.label}}</option>
-              }
-            </select>
-          </div>
         </div>
-      }
+        
+        <div class="property-row">
+          <label>Background Alpha (transparency):</label>
+          <input 
+            type="number" 
+            [value]="element.bgAlpha"
+            (input)="updateProperty('bgAlpha', $event)"
+            min="0"
+            max="1"
+            step="0.1"
+          />
+        </div>
+        
+        <div class="property-row">
+          <label>Background Fill:</label>
+          <select 
+            [value]="element.bgFill"
+            (change)="updateProperty('bgFill', $event)"
+          >
+            @for (fill of bgFillOptions; track fill.value) {
+              <option [value]="fill.value">{{fill.label}}</option>
+            }
+          </select>
+        </div>
+      </div>
 
       <!-- Image Properties -->
       @if (element.type === 'Image') {
@@ -355,6 +353,174 @@
                 <div class="color-preview" [style.background-color]="getColorPreview(element.buttonColorBase)"></div>
               </div>
             </div>
+          </div>
+
+          <div class="property-row">
+            <label>Base Alpha:</label>
+            <input
+              type="number"
+              [value]="element.buttonAlphaBase"
+              (input)="updateProperty('buttonAlphaBase', $event)"
+              min="0"
+              max="1"
+              step="0.1"
+            />
+          </div>
+
+          <div class="property-row">
+            <label>Disabled Color:</label>
+            <div class="color-input">
+              <div class="color-palette">
+                @for (color of colorPalette; track color) {
+                  <button
+                    type="button"
+                    class="color-swatch"
+                    [class.selected]="isPaletteColorSelected(element.buttonColorDisabled, color)"
+                    [style.background-color]="color"
+                    (click)="setColorProperty('buttonColorDisabled', color)"
+                    [attr.aria-label]="'Set button disabled color to ' + color"
+                  ></button>
+                }
+              </div>
+              <div class="color-picker-group">
+                <input
+                  type="color"
+                  [value]="colorArrayToHex(element.buttonColorDisabled)"
+                  (input)="onColorPickerChange('buttonColorDisabled', $event)"
+                />
+                <span class="color-value">{{ colorArrayToHex(element.buttonColorDisabled) }}</span>
+                <div class="color-preview" [style.background-color]="getColorPreview(element.buttonColorDisabled)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="property-row">
+            <label>Disabled Alpha:</label>
+            <input
+              type="number"
+              [value]="element.buttonAlphaDisabled"
+              (input)="updateProperty('buttonAlphaDisabled', $event)"
+              min="0"
+              max="1"
+              step="0.1"
+            />
+          </div>
+
+          <div class="property-row">
+            <label>Pressed Color:</label>
+            <div class="color-input">
+              <div class="color-palette">
+                @for (color of colorPalette; track color) {
+                  <button
+                    type="button"
+                    class="color-swatch"
+                    [class.selected]="isPaletteColorSelected(element.buttonColorPressed, color)"
+                    [style.background-color]="color"
+                    (click)="setColorProperty('buttonColorPressed', color)"
+                    [attr.aria-label]="'Set button pressed color to ' + color"
+                  ></button>
+                }
+              </div>
+              <div class="color-picker-group">
+                <input
+                  type="color"
+                  [value]="colorArrayToHex(element.buttonColorPressed)"
+                  (input)="onColorPickerChange('buttonColorPressed', $event)"
+                />
+                <span class="color-value">{{ colorArrayToHex(element.buttonColorPressed) }}</span>
+                <div class="color-preview" [style.background-color]="getColorPreview(element.buttonColorPressed)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="property-row">
+            <label>Pressed Alpha:</label>
+            <input
+              type="number"
+              [value]="element.buttonAlphaPressed"
+              (input)="updateProperty('buttonAlphaPressed', $event)"
+              min="0"
+              max="1"
+              step="0.1"
+            />
+          </div>
+
+          <div class="property-row">
+            <label>Hover Color:</label>
+            <div class="color-input">
+              <div class="color-palette">
+                @for (color of colorPalette; track color) {
+                  <button
+                    type="button"
+                    class="color-swatch"
+                    [class.selected]="isPaletteColorSelected(element.buttonColorHover, color)"
+                    [style.background-color]="color"
+                    (click)="setColorProperty('buttonColorHover', color)"
+                    [attr.aria-label]="'Set button hover color to ' + color"
+                  ></button>
+                }
+              </div>
+              <div class="color-picker-group">
+                <input
+                  type="color"
+                  [value]="colorArrayToHex(element.buttonColorHover)"
+                  (input)="onColorPickerChange('buttonColorHover', $event)"
+                />
+                <span class="color-value">{{ colorArrayToHex(element.buttonColorHover) }}</span>
+                <div class="color-preview" [style.background-color]="getColorPreview(element.buttonColorHover)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="property-row">
+            <label>Hover Alpha:</label>
+            <input
+              type="number"
+              [value]="element.buttonAlphaHover"
+              (input)="updateProperty('buttonAlphaHover', $event)"
+              min="0"
+              max="1"
+              step="0.1"
+            />
+          </div>
+
+          <div class="property-row">
+            <label>Focused Color:</label>
+            <div class="color-input">
+              <div class="color-palette">
+                @for (color of colorPalette; track color) {
+                  <button
+                    type="button"
+                    class="color-swatch"
+                    [class.selected]="isPaletteColorSelected(element.buttonColorFocused, color)"
+                    [style.background-color]="color"
+                    (click)="setColorProperty('buttonColorFocused', color)"
+                    [attr.aria-label]="'Set button focused color to ' + color"
+                  ></button>
+                }
+              </div>
+              <div class="color-picker-group">
+                <input
+                  type="color"
+                  [value]="colorArrayToHex(element.buttonColorFocused)"
+                  (input)="onColorPickerChange('buttonColorFocused', $event)"
+                />
+                <span class="color-value">{{ colorArrayToHex(element.buttonColorFocused) }}</span>
+                <div class="color-preview" [style.background-color]="getColorPreview(element.buttonColorFocused)"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="property-row">
+            <label>Focused Alpha:</label>
+            <input
+              type="number"
+              [value]="element.buttonAlphaFocused"
+              (input)="updateProperty('buttonAlphaFocused', $event)"
+              min="0"
+              max="1"
+              step="0.1"
+            />
           </div>
           
           <!-- Additional button states could be added here -->

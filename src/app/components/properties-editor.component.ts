@@ -30,11 +30,15 @@ export class PropertiesEditorComponent {
     '#716000',
   ];
 
-  private readonly colorProperties: readonly (keyof Pick<UIElement, 'textColor' | 'bgColor' | 'imageColor' | 'buttonColorBase'>)[] = [
+  private readonly colorProperties: readonly (keyof Pick<UIElement, 'textColor' | 'bgColor' | 'imageColor' | 'buttonColorBase' | 'buttonColorDisabled' | 'buttonColorPressed' | 'buttonColorHover' | 'buttonColorFocused'>)[] = [
     'textColor',
     'bgColor',
     'imageColor',
     'buttonColorBase',
+    'buttonColorDisabled',
+    'buttonColorPressed',
+    'buttonColorHover',
+    'buttonColorFocused',
   ];
 
   anchorOptions = [
