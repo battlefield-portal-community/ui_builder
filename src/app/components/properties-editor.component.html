@@ -24,16 +24,16 @@
           <span class="readonly-value">{{element.type}}</span>
         </div>
         
-        <div class="property-row">
+        <div class="property-row--inline">
           <label>Visible:</label>
           <input 
-            type="checkbox" 
+            type="checkbox"
             [checked]="element.visible"
             (change)="updateProperty('visible', $event)"
           />
         </div>
 
-        <div class="property-row">
+        <div class="property-row--inline">
           <label>Locked:</label>
           <input
             type="checkbox"

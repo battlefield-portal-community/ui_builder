@@ -87,6 +87,23 @@
   margin: 0;
 }
 
+/* Modifier: show label and control on a single horizontal line (useful for checkboxes) */
+.property-row--inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.property-row--inline label {
+  margin-bottom: 0;
+  margin-right: 8px;
+}
+
+.property-row--inline input[type="checkbox"] {
+  margin: 0;
+}
+
 .readonly-value {
   color: #888;
   font-style: italic;
