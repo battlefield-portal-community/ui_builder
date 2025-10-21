@@ -24,7 +24,6 @@ BfUiBuilder is a browser-based layout designer for Battlefield Portal user inter
 - Tab and menus with code that handles showing and hiding the correct page
 - Save and continue later (are cookies enough ?)
 - Better error logging
-- Multiple ParseUi calls for root containers as default export format
 
 ## Bugs
 - Ability to add sub elements to a text container (need to test in game if that's legal)
@@ -32,8 +31,6 @@ BfUiBuilder is a browser-based layout designer for Battlefield Portal user inter
 - Zooming breaks element positionning
   - background zooming and canvas zooming don't have the same zoom ratios
 - Buttons are not in the correct format
-- Import doesn't work for more than one ParseUi calls
-- Spaces are generated in the stringkeys in typescript which messes the parsing up
 
 ## Getting started
 
