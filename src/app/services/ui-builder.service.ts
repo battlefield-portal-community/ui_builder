@@ -699,8 +699,8 @@ export class UiBuilderService {
     const strings = this.collectTextStrings(elements);
     const stringsJson = Object.keys(strings).length ? JSON.stringify(strings, null, 2) : '{}';
     const timestamp = new Date().toLocaleString();
-    const typescriptCode = this.buildTypescriptCode(params, strings, timestamp);
     const typescriptSnippets = this.buildTypescriptSnippets(elements, params, strings, timestamp);
+    const typescriptCode = this.buildTypescriptCode(typescriptSnippets, timestamp);
 
     return {
       params,
@@ -1171,35 +1171,24 @@ export class UiBuilderService {
     return strings;
   }
 
-  private buildTypescriptCode(
-    params: UIParams[],
-    strings: Record<string, string>,
-    timestamp?: string
-  ): string {
-    const resolvedTimestamp = timestamp ?? new Date().toLocaleString();
-    const codeLines: string[] = [
-      `// Auto-generated UI script ${resolvedTimestamp}`,
-      'const widget = modlib.ParseUI(',
-    ];
+  private buildTypescriptCode(snippets: UIExportSnippet[], timestamp?: string): string {
+    const codeLines: string[] = snippets.length > 1 ? [`// ${snippets.length} root containers exported`] : [];
 
-    if (params.length) {
-      params.forEach((param, index) => {
-        const isLast = index === params.length - 1;
-        const serialized = this.serializeParamToTypescript(param, 1, strings);
-        if (isLast) {
-          codeLines.push(serialized);
-        } else {
-          const lines = serialized.split('\n');
-          lines[lines.length - 1] = `${lines[lines.length - 1]},`;
-          codeLines.push(lines.join('\n'));
-          codeLines.push('');
-        }
-      });
-    } else {
-      codeLines.push('  // No UI elements defined');
+    if (!snippets.length) {
+      codeLines.push('// No UI elements defined');
+      return codeLines.join('\n');
     }
 
-    codeLines.push(');');
+    codeLines.push('');
+
+    snippets.forEach((snippet, index) => {
+      const snippetLines = snippet.code.trimEnd();
+      codeLines.push(snippetLines);
+      if (index < snippets.length - 1) {
+        codeLines.push('');
+      }
+    });
+
     codeLines.push('');
 
     return codeLines.join('\n');
@@ -1745,7 +1734,7 @@ export class UiBuilderService {
 
         if (expectComma) {
           if (next.type !== 'comma') {
-            throw new Error('Missing comma between object properties in ParseUI payload.');
+            throw new Error(`Missing comma between object properties in ParseUI payload. ${JSON.stringify(next)}`);
           }
           consume();
         }
@@ -1779,7 +1768,7 @@ export class UiBuilderService {
 
         if (expectComma) {
           if (next.type !== 'comma') {
-            throw new Error('Missing comma between array items in ParseUI payload.');
+            throw new Error(`Missing comma between array items in ParseUI payload. ${JSON.stringify(next)}`);
           }
           consume();
         }
