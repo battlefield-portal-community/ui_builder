@@ -184,6 +184,10 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     const element = this.uiBuilder.findElementById(elementId);
     if (!element) return;
 
+    if (element.locked) {
+      return;
+    }
+
     // Start dragging
     this.isDragging = true;
     this.dragElement = element;
@@ -218,6 +222,10 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     const element = this.uiBuilder.findElementById(elementId);
     if (!element) return;
 
+    if (element.locked) {
+      return;
+    }
+
     // Start resizing
     this.isResizing = true;
     this.resizeElement = element;
@@ -244,7 +252,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     // Handle dragging
-    if (this.isDragging && this.dragElement) {
+    if (this.isDragging && this.dragElement && !this.dragElement.locked) {
       // Calculate new element position by subtracting drag offset
       const newElementGameX = mouseGameX - this.dragOffset.x;
       const newElementGameY = mouseGameY - this.dragOffset.y;
@@ -268,6 +276,10 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
     // Handle resizing
     if (this.isResizing && this.resizeElement && this.resizeDirection) {
+      if (this.resizeElement.locked) {
+        return;
+      }
+
       const deltaX = mouseGameX - this.resizeStartMouse.x;
       const deltaY = mouseGameY - this.resizeStartMouse.y;
 

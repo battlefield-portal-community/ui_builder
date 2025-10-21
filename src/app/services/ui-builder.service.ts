@@ -36,6 +36,7 @@ interface UIPersistedPayload {
   stringsJson: string;
   backgroundMode: CanvasBackgroundMode;
   backgroundImage: string | null;
+  elementsJson?: string;
 }
 
 type ParseUiTokenType =
@@ -95,6 +96,14 @@ export interface UIExportArtifacts {
   strings: Record<string, string>;
   stringsJson: string;
   typescriptCode: string;
+  typescriptSnippets: UIExportSnippet[];
+}
+
+export interface UIExportSnippet {
+  elementId: string;
+  name: string;
+  variableName: string;
+  code: string;
 }
 
 @Injectable({
@@ -345,11 +354,38 @@ export class UiBuilderService {
   // Update element properties
   updateElement(elementId: string, updates: Partial<UIElement>): void {
     this._elements.update(elements => {
-      return this.updateElementRecursive(elements, elementId, (element) => ({
-        ...element,
-        ...updates
-      }));
+      return this.updateElementRecursive(elements, elementId, (element) => {
+        const nextUpdates: Partial<UIElement> = { ...updates };
+
+        const requestedLocked =
+          Object.prototype.hasOwnProperty.call(nextUpdates, 'locked') && typeof nextUpdates.locked === 'boolean'
+            ? nextUpdates.locked
+            : element.locked;
+
+        if (element.locked && requestedLocked !== false) {
+          delete nextUpdates.position;
+          delete nextUpdates.size;
+        }
+
+        return {
+          ...element,
+          ...nextUpdates,
+        };
+      });
     });
+  }
+
+  setElementLocked(elementId: string, locked: boolean): void {
+    this.updateElement(elementId, { locked });
+  }
+
+  toggleElementLocked(elementId: string): void {
+    const element = this.findElementById(elementId);
+    if (!element) {
+      return;
+    }
+
+    this.setElementLocked(elementId, !element.locked);
   }
 
   // Select element
@@ -662,7 +698,9 @@ export class UiBuilderService {
     const paramsJson = JSON.stringify(params, null, 2);
     const strings = this.collectTextStrings(elements);
     const stringsJson = Object.keys(strings).length ? JSON.stringify(strings, null, 2) : '{}';
-    const typescriptCode = this.buildTypescriptCode(params, strings);
+    const timestamp = new Date().toLocaleString();
+    const typescriptCode = this.buildTypescriptCode(params, strings, timestamp);
+    const typescriptSnippets = this.buildTypescriptSnippets(elements, params, strings, timestamp);
 
     return {
       params,
@@ -670,6 +708,7 @@ export class UiBuilderService {
       strings,
       stringsJson,
       typescriptCode,
+      typescriptSnippets,
     };
   }
 
@@ -753,6 +792,7 @@ export class UiBuilderService {
       stringsJson: artifacts.stringsJson,
       backgroundMode: this._canvasBackgroundMode(),
       backgroundImage: this._canvasBackgroundImage(),
+      elementsJson: JSON.stringify(this._elements()),
     };
 
     const serialized = JSON.stringify(payload);
@@ -785,13 +825,23 @@ export class UiBuilderService {
         return;
       }
 
-      const params = JSON.parse(payload.paramsJson ?? '[]');
-      if (!Array.isArray(params)) {
-        return;
+      let restoredElements: UIElement[] | null = null;
+
+      if (typeof payload.elementsJson === 'string' && payload.elementsJson.trim().length > 0) {
+        restoredElements = this.restoreElementsFromElementsJson(payload.elementsJson);
       }
 
-      const restored = this.restoreElementsFromParams(params as UIParams[]);
-      this._elements.set(restored);
+      if (!restoredElements) {
+        const params = JSON.parse(payload.paramsJson ?? '[]');
+        if (!Array.isArray(params)) {
+          return;
+        }
+
+        restoredElements = this.restoreElementsFromParams(params as UIParams[]);
+      }
+
+      this._elements.set(restoredElements);
+      this.refreshNextId(restoredElements);
       this._selectedElementId.set(null);
 
       if (payload.backgroundMode) {
@@ -810,6 +860,63 @@ export class UiBuilderService {
 
   private restoreElementsFromParams(params: UIParams[], parentId: string | null = null): UIElement[] {
     return params.map(param => this.buildElementFromParams(param, parentId));
+  }
+
+  private restoreElementsFromElementsJson(elementsJson: string): UIElement[] | null {
+    try {
+      const parsed = JSON.parse(elementsJson);
+      if (!Array.isArray(parsed)) {
+        return null;
+      }
+
+      const hydrate = (nodes: any[], parentId: string | null): UIElement[] =>
+        nodes
+          .map(node => {
+            if (!node || typeof node !== 'object') {
+              return null;
+            }
+
+            const children = Array.isArray(node.children) ? hydrate(node.children, node.id ?? null) : [];
+
+            return {
+              ...node,
+              parent: parentId,
+              locked: typeof node.locked === 'boolean' ? node.locked : false,
+              children,
+            } as UIElement;
+          })
+          .filter((node): node is UIElement => !!node);
+
+      return hydrate(parsed, null);
+    } catch (error) {
+      console.error('Failed to restore elements from saved state:', error);
+      return null;
+    }
+  }
+
+  private refreshNextId(elements: UIElement[]): void {
+    let maxIdNumeric = 0;
+
+    const visit = (nodes: UIElement[]) => {
+      for (const node of nodes) {
+        const match = typeof node.id === 'string' ? node.id.match(/_(\d+)$/) : null;
+        if (match) {
+          const numericId = Number.parseInt(match[1], 10);
+          if (Number.isFinite(numericId)) {
+            maxIdNumeric = Math.max(maxIdNumeric, numericId);
+          }
+        }
+
+        if (node.children?.length) {
+          visit(node.children);
+        }
+      }
+    };
+
+    visit(elements);
+
+    const nextId = maxIdNumeric + 1;
+    this._nextId = Math.max(this._nextId, nextId);
   }
 
   private buildElementFromParams(param: UIParams, parentId: string | null): UIElement {
@@ -1029,7 +1136,7 @@ export class UiBuilderService {
   }
 
   private serializeElement(element: UIElement): UIParams {
-    const { id, children = [], ...rest } = element;
+    const { id, children = [], locked, ...rest } = element;
     const serializedChildren = children.map(child => this.serializeElement(child));
 
     return {
@@ -1064,9 +1171,14 @@ export class UiBuilderService {
     return strings;
   }
 
-  private buildTypescriptCode(params: UIParams[], strings: Record<string, string>): string {
+  private buildTypescriptCode(
+    params: UIParams[],
+    strings: Record<string, string>,
+    timestamp?: string
+  ): string {
+    const resolvedTimestamp = timestamp ?? new Date().toLocaleString();
     const codeLines: string[] = [
-      `// Auto-generated UI script ${new Date().toLocaleString()}`,
+      `// Auto-generated UI script ${resolvedTimestamp}`,
       'const widget = modlib.ParseUI(',
     ];
 
@@ -1160,6 +1272,77 @@ export class UiBuilderService {
     lines.push(`${indent}}`);
 
     return lines.join('\n');
+  }
+
+  private buildTypescriptSnippets(
+    elements: UIElement[],
+    params: UIParams[],
+    strings: Record<string, string>,
+    timestamp: string
+  ): UIExportSnippet[] {
+    if (!elements.length) {
+      return [];
+    }
+
+    const usedIdentifiers = new Set<string>();
+
+    return elements.map((element, index) => {
+      const param = params[index] ?? this.serializeElement(element);
+      const resolvedName = (element.name ?? param.name ?? `Element ${index + 1}`).trim() || `Element ${index + 1}`;
+      const variableName = this.buildSnippetVariableName(resolvedName, usedIdentifiers);
+
+      const codeLines: string[] = [
+        `// Auto-generated UI snippet (${resolvedName}) ${timestamp}`,
+        `const ${variableName} = modlib.ParseUI(`,
+        this.serializeParamToTypescript(param, 1, strings),
+        ');',
+        '',
+      ];
+
+      return {
+        elementId: element.id,
+        name: resolvedName,
+        variableName,
+        code: codeLines.join('\n'),
+      };
+    });
+  }
+
+  private buildSnippetVariableName(label: string, used: Set<string>): string {
+    const normalizedLabel = label.replace(/[^A-Za-z0-9]+/g, ' ').trim();
+    const parts = normalizedLabel ? normalizedLabel.split(/\s+/) : [];
+    const camelCased = parts
+      .map(part => part.toLowerCase())
+      .map((part, index) => {
+        if (index === 0) {
+          return part;
+        }
+        return part.charAt(0).toUpperCase() + part.slice(1);
+      })
+      .join('');
+
+    let base = camelCased || 'widget';
+    base = base.replace(/[^A-Za-z0-9_]/g, '');
+
+    if (!/^[A-Za-z_$]/.test(base)) {
+      base = `widget${base.charAt(0).toUpperCase()}${base.slice(1)}`;
+    }
+
+    const lowerBase = base.toLowerCase();
+    if (!lowerBase.endsWith('widget')) {
+      base = `${base}Widget`;
+    }
+
+    base = base.charAt(0).toLowerCase() + base.slice(1);
+
+    let candidate = base;
+    let suffix = 2;
+    while (used.has(candidate)) {
+      candidate = `${base}${suffix++}`;
+    }
+
+    used.add(candidate);
+    return candidate;
   }
 
   private formatString(value: string | null | undefined): string {

@@ -141,14 +141,66 @@
         </div>
         <div class="export-modal__body">
           <section class="export-section">
-            <div class="export-section__header">
-              <h5>TypeScript Snippet</h5>
-              <div class="export-section__actions">
-                <button type="button" (click)="copyExportContent('typescript')">Copy</button>
-                <button type="button" (click)="downloadExportContent('typescript')">Download</button>
+            <div class="export-section__header export-section__header--toggle">
+              <div class="export-section__heading">
+                <h5>TypeScript Snippet</h5>
+                <div class="export-mode-toggle">
+                  <label class="export-mode-option">
+                    <input
+                      type="radio"
+                      name="export-mode"
+                      [checked]="exportMode() === 'combined'"
+                      (change)="setExportMode('combined')"
+                    />
+                    <span>Single call</span>
+                  </label>
+                  <label class="export-mode-option">
+                    <input
+                      type="radio"
+                      name="export-mode"
+                      [checked]="exportMode() === 'split'"
+                      (change)="setExportMode('split')"
+                    />
+                    <span>One call per root</span>
+                  </label>
+                </div>
               </div>
+
+              @if (exportMode() === 'combined') {
+                <div class="export-section__actions">
+                  <button type="button" (click)="copyExportContent('typescript')">Copy</button>
+                  <button type="button" (click)="downloadExportContent('typescript')">Download</button>
+                </div>
+              }
             </div>
-            <pre class="export-section__code">{{ artifacts.typescriptCode }}</pre>
+
+            @if (exportMode() === 'combined') {
+              <pre class="export-section__code">{{ artifacts.typescriptCode }}</pre>
+            } @else {
+              @if (artifacts.typescriptSnippets.length) {
+                <div class="export-snippet-list">
+                  @for (snippet of artifacts.typescriptSnippets; track snippet.elementId) {
+                    <div class="export-snippet-card">
+                      <div class="export-snippet-card__header">
+                        <div class="export-snippet-card__title">
+                          <span class="export-snippet-card__name">{{ snippet.name }}</span>
+                          <span class="export-snippet-card__variable">{{ snippet.variableName }}</span>
+                        </div>
+                        <div class="export-snippet-card__actions">
+                          <button type="button" (click)="copySnippet(snippet)">Copy</button>
+                          <button type="button" (click)="downloadSnippet(snippet)">Download</button>
+                        </div>
+                      </div>
+                      <pre class="export-snippet-card__code">{{ snippet.code }}</pre>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="export-section__empty">
+                  No root elements available for individual export.
+                </div>
+              }
+            }
           </section>
           <section class="export-section">
             <div class="export-section__header">

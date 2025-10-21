@@ -73,6 +73,16 @@
   border-color: #4a9eff;
 }
 
+.ui-element.locked {
+  cursor: default;
+  border-color: rgba(255, 255, 255, 0.15);
+  border-style: dashed;
+}
+
+.ui-element.locked:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
 .ui-element.selected {
   border-color: #ff6b35;
   border-width: 2px;
@@ -94,6 +104,14 @@
   align-items: stretch;
   justify-content: stretch;
   position: relative;
+}
+
+.element-lock-indicator {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 14px;
+  pointer-events: none;
 }
 
 .container-content {

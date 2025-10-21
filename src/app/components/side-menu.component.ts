@@ -50,6 +50,11 @@ export class SideMenuComponent {
     this.uiBuilder.moveElement(elementId, direction);
   }
 
+  toggleElementLock(event: MouseEvent, element: UIElement) {
+    event.stopPropagation();
+    this.uiBuilder.setElementLocked(element.id, !element.locked);
+  }
+
   canMove(element: UIElement, direction: 'up' | 'down'): boolean {
     const location = this.uiBuilder.getElementLocation(element.id);
     if (!location) return false;

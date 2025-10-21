@@ -32,11 +32,26 @@
             (change)="updateProperty('visible', $event)"
           />
         </div>
+
+        <div class="property-row">
+          <label>Locked:</label>
+          <input
+            type="checkbox"
+            [checked]="element.locked"
+            (change)="toggleLock(element, $event)"
+          />
+        </div>
       </div>
 
       <!-- Position & Size -->
       <div class="property-group">
         <h4>Position & Size</h4>
+
+        @if (element.locked) {
+          <div class="property-hint">
+            Unlock the element to move or resize it.
+          </div>
+        }
         
         <div class="property-row">
           <label>Position:</label>
@@ -46,12 +61,14 @@
               [value]="element.position[0]"
               (input)="updateVectorProperty('position', 0, $event)"
               placeholder="X"
+              [disabled]="element.locked"
             />
             <input 
               type="number" 
               [value]="element.position[1]"
               (input)="updateVectorProperty('position', 1, $event)"
               placeholder="Y"
+              [disabled]="element.locked"
             />
           </div>
         </div>
@@ -65,6 +82,7 @@
               (input)="updateVectorProperty('size', 0, $event)"
               placeholder="Width"
               min="1"
+              [disabled]="element.locked"
             />
             <input 
               type="number" 
@@ -72,6 +90,7 @@
               (input)="updateVectorProperty('size', 1, $event)"
               placeholder="Height"
               min="1"
+              [disabled]="element.locked"
             />
           </div>
         </div>

@@ -11,6 +11,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  max-height: 100%;
   overflow-y: auto;
 }
 
@@ -148,6 +149,10 @@
   color: white;
 }
 
+.tree-element.locked:not(.selected) .element-item {
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
 .element-item {
   display: flex;
   align-items: center;
@@ -170,6 +175,12 @@
   font-size: 13px;
 }
 
+.element-lock-label {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+
 .element-actions {
   display: flex;
   gap: 4px;
@@ -189,6 +200,10 @@
   padding: 2px 4px;
   border-radius: 2px;
   font-size: 12px;
+}
+
+.lock-btn:hover {
+  background: #ffc85722;
 }
 
 .action-btn:disabled {
