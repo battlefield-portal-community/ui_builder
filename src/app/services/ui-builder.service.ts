@@ -1220,9 +1220,9 @@ export class UiBuilderService {
     pushLine(`${propIndent}imageType: ${this.formatEnumValue('UIImageType', UIImageType, param.imageType)}`);
     pushLine(`${propIndent}imageColor: ${this.formatNumberArray(param.imageColor)}`);
     pushLine(`${propIndent}imageAlpha: ${this.formatNumber(param.imageAlpha)}`);
-    pushLine(`${propIndent}buttonEnabled: ${this.formatBoolean(param.buttonEnabled)}`);
-
+    
     if (param.buttonEnabled) {
+      pushLine(`${propIndent}buttonEnabled: ${this.formatBoolean(param.buttonEnabled)}`);
       pushLine(`${propIndent}buttonColorBase: ${this.formatNumberArray(param.buttonColorBase)}`);
       pushLine(`${propIndent}buttonAlphaBase: ${this.formatNumber(param.buttonAlphaBase)}`);
       pushLine(`${propIndent}buttonColorDisabled: ${this.formatNumberArray(param.buttonColorDisabled)}`);
@@ -1385,25 +1385,55 @@ export class UiBuilderService {
   }
 
   private parseParseUiTypescript(source: string): UIParams[] {
-    const payload = this.extractParseUiPayload(source);
-    if (!payload) {
+    const payloads = this.extractParseUiPayloads(source);
+    if (!payloads.length) {
       return [];
     }
 
-    const tokens = this.tokenizeParseUiPayload(payload);
-    if (!tokens.length) {
-      return [];
+    const normalized: UIParams[] = [];
+
+    for (const payload of payloads) {
+      const tokens = this.tokenizeParseUiPayload(payload);
+      if (!tokens.length) {
+        continue;
+      }
+
+      const rawParams = this.parseTokensToParams(tokens);
+      rawParams.forEach(param => normalized.push(this.normalizeParsedParam(param)));
     }
 
-    const rawParams = this.parseTokensToParams(tokens);
-    return rawParams.map(param => this.normalizeParsedParam(param));
+    return normalized;
   }
 
-  private extractParseUiPayload(source: string): string {
-    const marker = 'modlib.ParseUI';
-    const callIndex = source.indexOf(marker);
-    if (callIndex === -1) {
+  private extractParseUiPayloads(source: string): string[] {
+    const payloads: string[] = [];
+    let searchIndex = 0;
+
+    while (searchIndex < source.length) {
+      const result = this.extractNextParseUiPayload(source, searchIndex);
+      if (!result) {
+        break;
+      }
+
+      payloads.push(result.payload);
+      searchIndex = result.nextIndex;
+    }
+
+    if (!payloads.length) {
       throw new Error('Could not find a modlib.ParseUI call in the provided code.');
+    }
+
+    return payloads;
+  }
+
+  private extractNextParseUiPayload(
+    source: string,
+    startSearchIndex: number
+  ): { payload: string; nextIndex: number } | null {
+    const marker = 'modlib.ParseUI';
+    const callIndex = source.indexOf(marker, startSearchIndex);
+    if (callIndex === -1) {
+      return null;
     }
 
     const openIndex = source.indexOf('(', callIndex + marker.length);
@@ -1480,7 +1510,11 @@ export class UiBuilderService {
       if (char === ')') {
         depth--;
         if (depth === 0) {
-          break;
+          const closingIndex = index;
+          return {
+            payload: payload.trim(),
+            nextIndex: closingIndex + 1,
+          };
         }
         payload += char;
         index++;
@@ -1491,11 +1525,7 @@ export class UiBuilderService {
       index++;
     }
 
-    if (depth !== 0) {
-      throw new Error('The modlib.ParseUI call appears to have unmatched parentheses.');
-    }
-
-    return payload.trim();
+    throw new Error('The modlib.ParseUI call appears to have unmatched parentheses.');
   }
 
   private tokenizeParseUiPayload(payload: string): ParseUiToken[] {
