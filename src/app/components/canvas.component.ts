@@ -288,11 +288,11 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
       // Calculate new size based on resize direction
       if (this.resizeDirection === 'right' || this.resizeDirection === 'corner') {
-        newWidth = this.roundValue(Math.max(10, this.resizeStartSize.width + deltaX), 2); // Minimum width of 10
+        newWidth = this.roundValue(Math.max(1, this.resizeStartSize.width + deltaX), 2); // Minimum width of 10
       }
       
       if (this.resizeDirection === 'bottom' || this.resizeDirection === 'corner') {
-        newHeight = this.roundValue(Math.max(10, this.resizeStartSize.height + deltaY), 2); // Minimum height of 10
+        newHeight = this.roundValue(Math.max(1, this.resizeStartSize.height + deltaY), 2); // Minimum height of 10
       }
 
       // Update element size
