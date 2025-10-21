@@ -24,6 +24,13 @@
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   user-select: none;
+  flex: 0 0 auto;
+  cursor: grab;
+}
+
+.canvas.is-panning,
+.canvas-container.is-panning {
+  cursor: grabbing;
 }
 
 .snap-guides {

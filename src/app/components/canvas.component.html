@@ -1,10 +1,12 @@
-<div #canvasContainer class="canvas-container">
+<div #canvasContainer class="canvas-container" [class.is-panning]="isPanning">
   <div 
     #canvas 
     class="canvas" 
+    [class.is-panning]="isPanning"
     [style.width.px]="canvasWidth"
     [style.height.px]="canvasHeight"
     [ngStyle]="canvasStyle()"
+    (mousedown)="onCanvasMouseDown($event)"
     (click)="onCanvasClick($event)"
   >
     <div class="screen-indicator">

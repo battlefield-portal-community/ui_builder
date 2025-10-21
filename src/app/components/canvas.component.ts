@@ -82,6 +82,12 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   private resizeStartSize = { width: 0, height: 0 };
   private resizeStartMouse = { x: 0, y: 0 };
 
+  // Canvas panning state
+  isPanning = false;
+  private panStart = { x: 0, y: 0 };
+  private panScrollStart = { left: 0, top: 0 };
+  private suppressNextCanvasClick = false;
+
   // Bound event handlers for cleanup
   private boundMouseMove = this.onMouseMove.bind(this);
   private boundMouseUp = this.onMouseUp.bind(this);
@@ -126,9 +132,17 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     event.preventDefault();
 
     const containerEl = this.canvasContainer.nativeElement;
+    const canvasEl = this.canvasElement.nativeElement;
+    const canvasRect = canvasEl.getBoundingClientRect();
+    const pointerOffsetX = event.clientX - canvasRect.left;
+    const pointerOffsetY = event.clientY - canvasRect.top;
+    const safeOffsetX = Math.min(Math.max(pointerOffsetX, 0), canvasRect.width || 0);
+    const safeOffsetY = Math.min(Math.max(pointerOffsetY, 0), canvasRect.height || 0);
+    const previousScrollLeft = containerEl.scrollLeft;
+    const previousScrollTop = containerEl.scrollTop;
     const previousScale = this.scale;
     const zoomMultiplier = event.deltaY < 0 ? 1 + this.zoomStep : 1 / (1 + this.zoomStep);
-  this.updateScale(previousScale * zoomMultiplier);
+    this.updateScale(previousScale * zoomMultiplier);
 
     const scaleRatio = this.scale / previousScale;
 
@@ -136,12 +150,13 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const containerRect = containerEl.getBoundingClientRect();
-    const offsetX = event.clientX - containerRect.left + containerEl.scrollLeft;
-    const offsetY = event.clientY - containerRect.top + containerEl.scrollTop;
+    const nextScrollLeft = safeOffsetX * scaleRatio - safeOffsetX + previousScrollLeft;
+    const nextScrollTop = safeOffsetY * scaleRatio - safeOffsetY + previousScrollTop;
 
-    containerEl.scrollLeft = offsetX * scaleRatio - (event.clientX - containerRect.left);
-    containerEl.scrollTop = offsetY * scaleRatio - (event.clientY - containerRect.top);
+    containerEl.scrollLeft = nextScrollLeft;
+    containerEl.scrollTop = nextScrollTop;
+
+    this.normalizeScrollPosition(containerEl, canvasEl);
   }
 
   private updateScale(nextScale: number) {
@@ -158,11 +173,57 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     this.scale = clamped;
   }
 
+  private normalizeScrollPosition(
+    containerEl: HTMLDivElement,
+    canvasEl: HTMLDivElement
+  ): void {
+    const maxScrollLeft = Math.max(0, canvasEl.offsetWidth - containerEl.clientWidth);
+    const maxScrollTop = Math.max(0, canvasEl.offsetHeight - containerEl.clientHeight);
+
+    if (maxScrollLeft === 0) {
+      containerEl.scrollLeft = 0;
+    } else if (containerEl.scrollLeft < 0 || containerEl.scrollLeft > maxScrollLeft) {
+      containerEl.scrollLeft = Math.min(Math.max(containerEl.scrollLeft, 0), maxScrollLeft);
+    }
+
+    if (maxScrollTop === 0) {
+      containerEl.scrollTop = 0;
+    } else if (containerEl.scrollTop < 0 || containerEl.scrollTop > maxScrollTop) {
+      containerEl.scrollTop = Math.min(Math.max(containerEl.scrollTop, 0), maxScrollTop);
+    }
+  }
+
   onCanvasClick(event: MouseEvent) {
+    if (this.suppressNextCanvasClick) {
+      this.suppressNextCanvasClick = false;
+      return;
+    }
+
     // Only deselect if clicking on canvas background and not dragging
     if (event.target === this.canvasElement.nativeElement && !this.isDragging) {
       this.uiBuilder.selectElement(null);
     }
+  }
+
+  onCanvasMouseDown(event: MouseEvent) {
+    if (!this.canvasContainer) {
+      return;
+    }
+
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const containerEl = this.canvasContainer.nativeElement;
+
+    this.isPanning = true;
+    this.suppressNextCanvasClick = false;
+    this.panStart.x = event.clientX;
+    this.panStart.y = event.clientY;
+    this.panScrollStart.left = containerEl.scrollLeft;
+    this.panScrollStart.top = containerEl.scrollTop;
   }
 
   onElementClick(event: MouseEvent, elementId: string) {
@@ -243,6 +304,23 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private onMouseMove(event: MouseEvent) {
+    if (this.isPanning && this.canvasContainer && this.canvasElement) {
+      const containerEl = this.canvasContainer.nativeElement;
+      const canvasEl = this.canvasElement.nativeElement;
+      const deltaX = event.clientX - this.panStart.x;
+      const deltaY = event.clientY - this.panStart.y;
+
+      containerEl.scrollLeft = this.panScrollStart.left - deltaX;
+      containerEl.scrollTop = this.panScrollStart.top - deltaY;
+      this.normalizeScrollPosition(containerEl, canvasEl);
+
+      if (!this.suppressNextCanvasClick && (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2)) {
+        this.suppressNextCanvasClick = true;
+      }
+
+      return;
+    }
+
     const canvasRect = this.canvasElement.nativeElement.getBoundingClientRect();
     const mouseGameX = (event.clientX - canvasRect.left) / this.scale;
     const mouseGameY = (event.clientY - canvasRect.top) / this.scale;
@@ -303,6 +381,15 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private onMouseUp(event: MouseEvent) {
+    if (this.isPanning) {
+      this.isPanning = false;
+      if (this.suppressNextCanvasClick) {
+        setTimeout(() => {
+          this.suppressNextCanvasClick = false;
+        });
+      }
+    }
+
     if (this.isDragging) {
       this.isDragging = false;
       this.dragElement = null;
