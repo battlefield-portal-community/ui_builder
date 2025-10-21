@@ -1200,29 +1200,39 @@ export class UiBuilderService {
     const children = param.children ?? [];
 
     const propertyBlocks: string[][] = [];
+    const elementType: UIElementTypes = param.type;
     const pushLine = (line: string) => propertyBlocks.push([line]);
 
-    pushLine(`${propIndent}type: ${this.formatString(param.type)}`);
     pushLine(`${propIndent}name: ${this.formatString(param.name)}`);
+    pushLine(`${propIndent}type: ${this.formatString(param.type)}`);
+
     pushLine(`${propIndent}position: ${this.formatNumberArray(param.position)}`);
     pushLine(`${propIndent}size: ${this.formatNumberArray(param.size)}`);
     pushLine(`${propIndent}anchor: ${this.formatEnumValue('UIAnchor', UIAnchor, param.anchor)}`);
+
     pushLine(`${propIndent}visible: ${this.formatBoolean(param.visible)}`);
-    pushLine(`${propIndent}textLabel: ${this.formatTextLabel(param, strings)}`);
-    pushLine(`${propIndent}textColor: ${this.formatNumberArray(param.textColor)}`);
-    pushLine(`${propIndent}textAlpha: ${this.formatNumber(param.textAlpha)}`);
-    pushLine(`${propIndent}textSize: ${this.formatNumber(param.textSize)}`);
-    pushLine(`${propIndent}textAnchor: ${this.formatEnumValue('UIAnchor', UIAnchor, param.textAnchor)}`);
     pushLine(`${propIndent}padding: ${this.formatNumber(param.padding)}`);
+
     pushLine(`${propIndent}bgColor: ${this.formatNumberArray(param.bgColor)}`);
     pushLine(`${propIndent}bgAlpha: ${this.formatNumber(param.bgAlpha)}`);
     pushLine(`${propIndent}bgFill: ${this.formatEnumValue('UIBgFill', UIBgFill, param.bgFill)}`);
-    pushLine(`${propIndent}imageType: ${this.formatEnumValue('UIImageType', UIImageType, param.imageType)}`);
-    pushLine(`${propIndent}imageColor: ${this.formatNumberArray(param.imageColor)}`);
-    pushLine(`${propIndent}imageAlpha: ${this.formatNumber(param.imageAlpha)}`);
-    
-    if (param.buttonEnabled) {
-      pushLine(`${propIndent}buttonEnabled: ${this.formatBoolean(param.buttonEnabled)}`);
+
+    if (elementType === "Text") {
+      pushLine(`${propIndent}textLabel: ${this.formatTextLabel(param, strings)}`);
+      pushLine(`${propIndent}textColor: ${this.formatNumberArray(param.textColor)}`);
+      pushLine(`${propIndent}textAlpha: ${this.formatNumber(param.textAlpha)}`);
+      pushLine(`${propIndent}textSize: ${this.formatNumber(param.textSize)}`);
+      pushLine(`${propIndent}textAnchor: ${this.formatEnumValue('UIAnchor', UIAnchor, param.textAnchor)}`);
+    }
+
+    if (elementType === "Image") {
+      pushLine(`${propIndent}imageType: ${this.formatEnumValue('UIImageType', UIImageType, param.imageType)}`);
+      pushLine(`${propIndent}imageColor: ${this.formatNumberArray(param.imageColor)}`);
+      pushLine(`${propIndent}imageAlpha: ${this.formatNumber(param.imageAlpha)}`);
+    }
+
+    if (elementType === "Button") {
+      pushLine(`${propIndent}buttonEnabled: true`);
       pushLine(`${propIndent}buttonColorBase: ${this.formatNumberArray(param.buttonColorBase)}`);
       pushLine(`${propIndent}buttonAlphaBase: ${this.formatNumber(param.buttonAlphaBase)}`);
       pushLine(`${propIndent}buttonColorDisabled: ${this.formatNumberArray(param.buttonColorDisabled)}`);
@@ -1371,7 +1381,7 @@ export class UiBuilderService {
   private formatTextLabel(param: UIParams, strings: Record<string, string>): string {
     const key = this.getLocalizationKey(param, strings);
     if (key) {
-      return `mod.stringkeys.${key}`;
+      return `mod.stringkeys.${key.replace(' ', '_')}`;
     }
     return this.formatString(param.textLabel ?? '');
   }
