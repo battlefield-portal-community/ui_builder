@@ -63,8 +63,8 @@
   border: 1px solid transparent;
   cursor: move;
   box-sizing: border-box;
-  min-height: 20px;
-  min-width: 20px;
+  min-height: 10px;
+  min-width: 10px;
   user-select: none;
   transition: opacity 0.1s ease, transform 0.1s ease, box-shadow 0.1s ease;
 }
