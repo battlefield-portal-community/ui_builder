@@ -19,6 +19,41 @@
         </button>
       }
     </div>
+    @if (hasAdvancedPresets()) {
+      <div class="advanced-presets">
+        <button
+          type="button"
+          class="advanced-toggle-btn"
+          (click)="toggleAdvancedPresetList()"
+        >
+          <span class="advanced-toggle-label">Advanced widgets</span>
+          <span class="advanced-toggle-count">{{advancedPresets().length}}</span>
+          <span class="advanced-toggle-icon">{{showAdvancedPresets() ? '▲' : '▼'}}</span>
+        </button>
+        @if (showAdvancedPresets()) {
+          <div class="advanced-presets__list">
+            @for (preset of advancedPresets(); track preset.id) {
+              <button
+                type="button"
+                class="advanced-preset-btn"
+                (click)="addAdvancedPreset(preset.id)"
+                [title]="'Add ' + preset.label"
+              >
+                <div class="advanced-preset__header">
+                  <span class="advanced-preset__label">{{preset.label}}</span>
+                  @if (preset.category) {
+                    <span class="advanced-preset__category">{{preset.category}}</span>
+                  }
+                </div>
+                @if (preset.description) {
+                  <span class="advanced-preset__description">{{preset.description}}</span>
+                }
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
     <div class="add-info">
       @if (selectedElement(); as selected) {
         <span class="add-target">Adding to: <strong>{{selected.name}}</strong></span>

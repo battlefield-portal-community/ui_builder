@@ -1,4 +1,4 @@
-import { Component, computed } from '@angular/core';
+import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UiBuilderService } from '../services/ui-builder.service';
 import { UIElementTypes, UIElement } from '../../models/types';
@@ -17,12 +17,19 @@ export class SideMenuComponent {
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
   selectedElement = computed(() => this.uiBuilder.getSelectedElement());
   snapToElements = computed(() => this.uiBuilder.snapToElements());
+  advancedPresets = computed(() => this.uiBuilder.advancedPresets());
+  hasAdvancedPresets = computed(() => this.advancedPresets().length > 0);
+  showAdvancedPresets = signal(false);
 
   constructor(private uiBuilder: UiBuilderService) {
   }
 
   addElement(type: UIElementTypes) {
     this.uiBuilder.addElement(type);
+  }
+
+  addAdvancedPreset(presetId: string) {
+    this.uiBuilder.addAdvancedPresetRoot(presetId);
   }
 
   selectElement(elementId: string) {
@@ -74,6 +81,10 @@ export class SideMenuComponent {
 
   setSnapToElements(enabled: boolean) {
     this.uiBuilder.setSnapToElements(enabled);
+  }
+
+  toggleAdvancedPresetList() {
+    this.showAdvancedPresets.update(value => !value);
   }
 
   getElementIcon(type: UIElementTypes): string {

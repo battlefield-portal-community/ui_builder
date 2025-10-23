@@ -81,13 +81,16 @@ export class HeaderBarComponent implements OnDestroy {
     this.exportModalOpen.set(false);
   }
 
-  async copyExportContent(section: 'typescript' | 'strings') {
+  async copyExportContent(section: 'typescript' | 'strings' | 'advanced') {
     const artifacts = this.exportArtifacts();
     if (!artifacts) {
       return;
     }
 
-    const content = section === 'typescript' ? artifacts.typescriptCode : artifacts.stringsJson;
+    const content = this.getExportContent(section, artifacts);
+    if (!content) {
+      return;
+    }
 
     try {
       await navigator.clipboard.writeText(content);
@@ -96,17 +99,47 @@ export class HeaderBarComponent implements OnDestroy {
     }
   }
 
-  downloadExportContent(section: 'typescript' | 'strings') {
+  downloadExportContent(section: 'typescript' | 'strings' | 'advanced') {
     const artifacts = this.exportArtifacts();
     if (!artifacts) {
       return;
     }
 
-    const content = section === 'typescript' ? artifacts.typescriptCode : artifacts.stringsJson;
-    const filename = section === 'typescript' ? 'ui-export.ts' : 'ui-strings.json';
-    const type = section === 'typescript' ? 'text/plain' : 'application/json';
+    const content = this.getExportContent(section, artifacts);
+    if (!content) {
+      return;
+    }
+
+    const filename = this.getExportFilename(section);
+    const type = section === 'strings' ? 'application/json' : 'text/plain';
 
     this.triggerDownload(content, filename, type);
+  }
+
+  private getExportContent(section: 'typescript' | 'strings' | 'advanced', artifacts: UIExportArtifacts): string {
+    switch (section) {
+      case 'typescript':
+        return artifacts.typescriptCode;
+      case 'strings':
+        return artifacts.stringsJson;
+      case 'advanced':
+        return artifacts.advancedTypescriptCode;
+      default:
+        return '';
+    }
+  }
+
+  private getExportFilename(section: 'typescript' | 'strings' | 'advanced'): string {
+    switch (section) {
+      case 'typescript':
+        return 'ui-export.ts';
+      case 'strings':
+        return 'ui-strings.json';
+      case 'advanced':
+        return 'ui-advanced-widgets.ts';
+      default:
+        return 'ui-export.txt';
+    }
   }
 
   openImportModal() {

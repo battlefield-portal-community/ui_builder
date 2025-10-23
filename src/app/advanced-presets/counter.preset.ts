@@ -110,7 +110,7 @@ const blueprint: UIParams = {
         name: "CounterText",
         type: "Text",
         position: [0, 0],
-        size: [200, 200],
+        size: [150, 150],
         anchor: UIAnchor.Center,
         visible: true,
         padding: 0,
