@@ -121,6 +121,7 @@ export class UiBuilderService {
   private _canvasBackgroundImages = signal<CanvasBackgroundAsset[]>([]);
   private _uploadedObjectUrls = new Set<string>();
   private _snapToElements = signal<boolean>(true);
+  private _showContainerLabels = signal<boolean>(true);
   private _copiedElement: {
     snapshot: UIElement;
     parentId: string | null;
@@ -137,6 +138,7 @@ export class UiBuilderService {
   readonly defaultCanvasBackgroundImageId = DEFAULT_CANVAS_BACKGROUND_IMAGE.id;
   readonly defaultCanvasBackgroundImage = DEFAULT_CANVAS_BACKGROUND_IMAGE;
   readonly snapToElements = this._snapToElements.asReadonly();
+  readonly showContainerLabels = this._showContainerLabels.asReadonly();
   readonly canvasBackgroundImageUrl = computed(() => {
     const imageId = this._canvasBackgroundImage();
     if (!imageId) {
@@ -163,6 +165,14 @@ export class UiBuilderService {
 
   toggleSnapToElements(): void {
     this._snapToElements.update(value => !value);
+  }
+
+  setShowContainerLabels(enabled: boolean): void {
+    this._showContainerLabels.set(!!enabled);
+  }
+
+  toggleShowContainerLabels(): void {
+    this._showContainerLabels.update(value => !value);
   }
 
   getElementBounds(elementId: string): UIElementBounds | null {

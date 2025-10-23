@@ -108,6 +108,10 @@
   color: #ccc;
 }
 
+.snap-toggle + .snap-toggle {
+  margin-top: 12px;
+}
+
 .snap-toggle__label {
   display: flex;
   align-items: center;

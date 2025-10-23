@@ -44,6 +44,16 @@
         Aligns edges and centers while dragging elements within the same container.
       </p>
     </div>
+    <div class="snap-toggle">
+      <label class="snap-toggle__label">
+        <input
+          type="checkbox"
+          [checked]="showContainerLabels()"
+          (change)="setShowContainerLabels($any($event.target).checked)"
+        />
+        <span>Show container names on canvas</span>
+      </label>
+    </div>
   </div>
 
   <!-- Element Hierarchy -->

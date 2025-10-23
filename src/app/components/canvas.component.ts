@@ -46,6 +46,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
+  showContainerLabels = computed(() => this.uiBuilder.showContainerLabels());
   canvasStyle = computed(() => {
     const mode = this.uiBuilder.canvasBackgroundMode();
     const style: Record<string, string> = {

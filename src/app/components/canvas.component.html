@@ -45,7 +45,9 @@
           @switch (element.type) {
             @case ('Container') {
               <div class="container-content" [style]="getBackgroundStyle(element)">
-                {{element.name}}
+                @if (showContainerLabels()) {
+                  {{element.name}}
+                }
               </div>
             }
             @case ('Text') {

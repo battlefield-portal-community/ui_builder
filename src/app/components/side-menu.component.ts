@@ -17,6 +17,7 @@ export class SideMenuComponent {
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
   selectedElement = computed(() => this.uiBuilder.getSelectedElement());
   snapToElements = computed(() => this.uiBuilder.snapToElements());
+  showContainerLabels = computed(() => this.uiBuilder.showContainerLabels());
 
   constructor(private uiBuilder: UiBuilderService) {
   }
@@ -74,6 +75,10 @@ export class SideMenuComponent {
 
   setSnapToElements(enabled: boolean) {
     this.uiBuilder.setSnapToElements(enabled);
+  }
+
+  setShowContainerLabels(enabled: boolean) {
+    this.uiBuilder.setShowContainerLabels(enabled);
   }
 
   getElementIcon(type: UIElementTypes): string {
