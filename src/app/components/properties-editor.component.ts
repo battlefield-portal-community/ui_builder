@@ -126,12 +126,18 @@ export class PropertiesEditorComponent {
     this.uiBuilder.updateElement(element.id, { [property]: newValue });
   }
 
-  getColorPreview(color: number[]): string {
+  getColorPreview(color?: number[]): string {
+    if (!color) {
+      return 'rgb(255, 255, 255)';
+    }
     const [r, g, b] = color;
     return `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
   }
 
-  colorArrayToHex(color: number[]): string {
+  colorArrayToHex(color?: number[]): string {
+    if (!color) {
+      return '#FFFFFF';
+    }
     const [r, g, b] = color;
     const toHex = (value: number) => {
       const intValue = Math.max(0, Math.min(255, Math.round(value * 255)));
@@ -160,8 +166,8 @@ export class PropertiesEditorComponent {
     this.setColorProperty(property, input.value);
   }
 
-  isPaletteColorSelected(currentColor: number[], hexValue: string): boolean {
-    return this.colorArrayToHex(currentColor).toUpperCase() === hexValue.toUpperCase();
+  isPaletteColorSelected(currentColor?: number[], hexValue?: string): boolean {
+    return this.colorArrayToHex(currentColor).toUpperCase() === hexValue?.toUpperCase();
   }
 
   private isColorProperty(property: keyof UIElement): property is typeof this.colorProperties[number] {

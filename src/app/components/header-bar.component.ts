@@ -67,12 +67,12 @@ export class HeaderBarComponent implements OnDestroy {
     }
   }
 
-  exportArtifactsToJson() {
+  async exportArtifactsToJson() {
     if (this.elements().length === 0) {
       return;
     }
 
-    const artifacts = this.uiBuilder.generateExportArtifacts();
+    const artifacts = await this.uiBuilder.generateExportArtifacts();
     this.exportArtifacts.set(artifacts);
     this.exportModalOpen.set(true);
   }
