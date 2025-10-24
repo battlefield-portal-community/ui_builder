@@ -943,11 +943,11 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   getTextStyle(element: UIElement): any {
-    const [r, g, b] = element.textColor;
-    const alignment = this.getTextAlignment(element.textAnchor);
+    const [r, g, b] = element?.textColor ?? [1, 1, 1];
+    const alignment = this.getTextAlignment(element?.textAnchor ?? UIAnchor.Center);
     return {
       color: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.textAlpha})`,
-      fontSize: `${element.textSize * this.scale}px`,
+      fontSize: `${(element?.textSize ?? 1) * this.scale}px`,
       padding: `${element.padding}px`,
       display: 'flex',
       justifyContent: alignment.justifyContent,
@@ -961,7 +961,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   getImageStyle(element: UIElement): any {
-    const [r, g, b] = element.imageColor;
+    const [r, g, b] = element?.imageColor ?? [1, 1, 1];
     return {
       color: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.imageAlpha})`,
       padding: `${element.padding}px`,
@@ -969,12 +969,12 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   getButtonStyle(element: UIElement): any {
-    const [r, g, b] = element.buttonColorBase;
-    const [tr, tg, tb] = element.textColor;
+    const [r, g, b] = element?.buttonColorBase ?? [1, 1, 1];
+    const [tr, tg, tb] = element?.textColor ?? [1, 1, 1];
     return {
       backgroundColor: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.buttonAlphaBase})`,
       color: `rgba(${Math.round(tr * 255)}, ${Math.round(tg * 255)}, ${Math.round(tb * 255)}, ${element.textAlpha})`,
-      fontSize: `${element.textSize * this.scale}px`,
+      fontSize: `${(element?.textSize ?? 1) * this.scale}px`,
       padding: `${element.padding}px`,
     };
   }

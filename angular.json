@@ -32,6 +32,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "**/*.template.ts",
+                "input": "src/app/advanced-presets/templates",
+                "output": "templates"
               }
             ],
             "styles": [

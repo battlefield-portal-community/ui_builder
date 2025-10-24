@@ -1,7 +1,7 @@
 <header class="header-bar">
   <div class="header-main">
     <div class="brand">
-      <span class="brand__title">UI Builder V1.3.2</span>
+      <span class="brand__title">UI Builder V1.4.0</span>
       <span class="brand__subtitle">Battlefield Portal</span>
     </div>
 
@@ -150,6 +150,18 @@
             </div>
             <pre class="export-section__code">{{ artifacts.typescriptCode }}</pre>
           </section>
+          @if (artifacts.advancedClasses.length > 0) {
+            <section class="export-section">
+              <div class="export-section__header">
+                <h5>Advanced Widget Classes</h5>
+                <div class="export-section__actions">
+                  <button type="button" (click)="copyExportContent('advanced')">Copy</button>
+                  <button type="button" (click)="downloadExportContent('advanced')">Download</button>
+                </div>
+              </div>
+              <pre class="export-section__code">{{ artifacts.advancedTypescriptCode }}</pre>
+            </section>
+          }
           <section class="export-section">
             <div class="export-section__header">
               <h5>Strings JSON</h5>

@@ -13,7 +13,11 @@ import {
   CANVAS_HEIGHT,
   UIElementBounds,
   UIRect,
+  UIAdvancedPresetDefinition,
+  UIAdvancedElementInstance,
 } from '../../models/types';
+import { registerAllAdvancedPresets } from '../advanced-presets/registry';
+import { buildAdvancedExportClasses as builder_buildAdvancedExportClasses, buildAdvancedTypescriptCode as builder_buildAdvancedTypescriptCode } from './export/advanced-export.builder';
 
 const DEFAULT_CANVAS_BACKGROUND_IMAGE: CanvasBackgroundAsset = {
   id: 'default-grid',
@@ -97,12 +101,21 @@ export interface UIExportArtifacts {
   stringsJson: string;
   typescriptCode: string;
   typescriptSnippets: UIExportSnippet[];
+  advancedClasses: UIAdvancedExportClass[];
+  advancedTypescriptCode: string;
 }
 
 export interface UIExportSnippet {
   elementId: string;
   name: string;
   variableName: string;
+  code: string;
+}
+
+export interface UIAdvancedExportClass {
+  rootElementId: string;
+  presetId: string;
+  className: string;
   code: string;
 }
 
@@ -122,6 +135,7 @@ export class UiBuilderService {
   private _uploadedObjectUrls = new Set<string>();
   private _snapToElements = signal<boolean>(true);
   private _showContainerLabels = signal<boolean>(true);
+  private _advancedPresets = signal<UIAdvancedPresetDefinition[]>([]);
   private _copiedElement: {
     snapshot: UIElement;
     parentId: string | null;
@@ -139,6 +153,7 @@ export class UiBuilderService {
   readonly defaultCanvasBackgroundImage = DEFAULT_CANVAS_BACKGROUND_IMAGE;
   readonly snapToElements = this._snapToElements.asReadonly();
   readonly showContainerLabels = this._showContainerLabels.asReadonly();
+  readonly advancedPresets = this._advancedPresets.asReadonly();
   readonly canvasBackgroundImageUrl = computed(() => {
     const imageId = this._canvasBackgroundImage();
     if (!imageId) {
@@ -155,6 +170,7 @@ export class UiBuilderService {
   readonly elementBounds = computed(() => this.computeElementBounds());
 
   constructor() {
+    registerAllAdvancedPresets(this);
     this.restoreProjectFromCookie();
     this.startAutoSaveTimer();
   }
@@ -173,6 +189,128 @@ export class UiBuilderService {
 
   toggleShowContainerLabels(): void {
     this._showContainerLabels.update(value => !value);
+  }
+
+  registerAdvancedPreset(preset: UIAdvancedPresetDefinition): void {
+    const normalized = this.normalizeAdvancedPresetDefinition(preset);
+    if (!normalized) {
+      return;
+    }
+
+    this._advancedPresets.update(current => {
+      const withoutDuplicate = current.filter(existing => existing.id !== normalized.id);
+      return [...withoutDuplicate, normalized];
+    });
+  }
+
+  registerAdvancedPresets(presets: UIAdvancedPresetDefinition[]): void {
+    presets.forEach(preset => this.registerAdvancedPreset(preset));
+  }
+
+  clearAdvancedPresets(): void {
+    this._advancedPresets.set([]);
+  }
+
+  getAdvancedPreset(presetId: string): UIAdvancedPresetDefinition | null {
+    return this.findAdvancedPreset(presetId);
+  }
+
+  applyAdvancedPresetToElement(elementId: string, presetId: string, options?: { customOptions?: Record<string, unknown> }): void {
+    const preset = this.findAdvancedPreset(presetId);
+    if (!preset) {
+      return;
+    }
+
+    this._elements.update(elements => {
+      return this.updateElementRecursive(elements, elementId, (element) => {
+        const slotBindings = this.buildSlotBindingSeed(preset);
+        const previousMetadata = element.advancedMetadata ?? null;
+        return {
+          ...element,
+          advancedMetadata: {
+            presetId: preset.id,
+            presetVersion: preset.version,
+            isRoot: true,
+            slotBindings,
+            customOptions: options?.customOptions ?? previousMetadata?.customOptions ?? {},
+          },
+        };
+      });
+    });
+  }
+
+  removeAdvancedPresetFromElement(elementId: string): void {
+    this._elements.update(elements => {
+      return this.updateElementRecursive(elements, elementId, (element) => ({
+        ...element,
+        advancedMetadata: null,
+      }));
+    });
+  }
+
+  instantiateAdvancedPreset(
+    presetId: string,
+    options?: { name?: string; customOptions?: Record<string, unknown> }
+  ): UIElement | null {
+    const preset = this.findAdvancedPreset(presetId);
+    if (!preset?.blueprint) {
+      return null;
+    }
+
+    const root = this.buildElementFromParams(preset.blueprint, null);
+    return this.applyAdvancedMetadataToPresetTree(root, preset, options);
+  }
+
+  addAdvancedPresetRoot(
+    presetId: string,
+    options?: { name?: string; customOptions?: Record<string, unknown> }
+  ): UIElement | null {
+    const instance = this.instantiateAdvancedPreset(presetId, options);
+    if (!instance) {
+      return null;
+    }
+
+    this._elements.update(elements => [...elements, instance]);
+    this._selectedElementId.set(instance.id);
+    return instance;
+  }
+
+  isAdvancedRootElement(elementId: string): boolean {
+    const element = this.findElementById(elementId);
+    return !!element?.advancedMetadata?.isRoot;
+  }
+
+  getAdvancedSlotBindings(elementId: string): Record<string, string | null> | null {
+    const element = this.findElementById(elementId);
+    if (!element?.advancedMetadata?.isRoot) {
+      return null;
+    }
+    return { ...element.advancedMetadata.slotBindings };
+  }
+
+  updateAdvancedSlotBinding(rootElementId: string, slotId: string, targetElementId: string | null): void {
+    this._elements.update(elements => {
+      return this.updateElementRecursive(elements, rootElementId, (element) => {
+        if (!element.advancedMetadata?.isRoot) {
+          return element;
+        }
+
+        const nextBindings = { ...element.advancedMetadata.slotBindings };
+        if (!(slotId in nextBindings)) {
+          return element;
+        }
+
+        nextBindings[slotId] = targetElementId;
+
+        return {
+          ...element,
+          advancedMetadata: {
+            ...element.advancedMetadata,
+            slotBindings: nextBindings,
+          },
+        };
+      });
+    });
   }
 
   getElementBounds(elementId: string): UIElementBounds | null {
@@ -310,6 +448,7 @@ export class UiBuilderService {
       name: name || `${type}_${generateRandomSuffix()}`,
       type,
       ...DEFAULT_UI_PARAMS,
+      advancedMetadata: null,
       children: [],
     } as UIElement;
   }
@@ -628,6 +767,9 @@ export class UiBuilderService {
       buttonColorHover: this.cloneVector(element.buttonColorHover),
       buttonColorFocused: this.cloneVector(element.buttonColorFocused),
       children,
+      advancedMetadata: element.advancedMetadata?.isRoot
+        ? null
+        : this.cloneAdvancedMetadata(element.advancedMetadata),
     };
   }
 
@@ -647,6 +789,7 @@ export class UiBuilderService {
       buttonColorHover: this.cloneVector(element.buttonColorHover),
       buttonColorFocused: this.cloneVector(element.buttonColorFocused),
       children,
+      advancedMetadata: this.cloneAdvancedMetadata(element.advancedMetadata),
     };
   }
 
@@ -666,6 +809,106 @@ export class UiBuilderService {
 
   private cloneVector(values: number[] | null | undefined): number[] {
     return Array.isArray(values) ? [...values] : [];
+  }
+
+  private cloneAdvancedMetadata(metadata: UIAdvancedElementInstance | null | undefined): UIAdvancedElementInstance | null {
+    if (!metadata) {
+      return null;
+    }
+
+    return {
+      presetId: metadata.presetId,
+      presetVersion: metadata.presetVersion,
+      isRoot: metadata.isRoot,
+      slotBindings: { ...metadata.slotBindings },
+      customOptions: metadata.customOptions ? { ...metadata.customOptions } : undefined,
+    };
+  }
+
+  private normalizeAdvancedPresetDefinition(preset: UIAdvancedPresetDefinition | null | undefined): UIAdvancedPresetDefinition | null {
+    if (!preset) {
+      return null;
+    }
+
+    const trimmedId = typeof preset.id === 'string' ? preset.id.trim() : '';
+    if (!trimmedId) {
+      return null;
+    }
+
+    const normalizedSlots = (preset.slots ?? [])
+      .map(slot => {
+        const slotId = typeof slot.id === 'string' ? slot.id.trim() : '';
+        if (!slotId) {
+          return null;
+        }
+
+        return {
+          ...slot,
+          id: slotId,
+          label: slot.label?.trim() || slotId,
+          allowedTypes: slot.allowedTypes ? [...slot.allowedTypes] : undefined,
+        };
+      })
+      .filter((slot): slot is NonNullable<typeof slot> => !!slot);
+
+    return {
+      ...preset,
+      id: trimmedId,
+      label: preset.label?.trim() || trimmedId,
+      version: preset.version?.trim() || '1.0.0',
+      category: preset.category?.trim(),
+      defaultClassName: preset.defaultClassName?.trim(),
+      defaultRootName: preset.defaultRootName?.trim(),
+      slots: normalizedSlots,
+    };
+  }
+
+  private findAdvancedPreset(presetId: string | null | undefined): UIAdvancedPresetDefinition | null {
+    const trimmed = typeof presetId === 'string' ? presetId.trim() : '';
+    if (!trimmed) {
+      return null;
+    }
+
+    return this._advancedPresets().find(option => option.id === trimmed) ?? null;
+  }
+
+  private buildSlotBindingSeed(preset: UIAdvancedPresetDefinition): Record<string, string | null> {
+    const bindings: Record<string, string | null> = {};
+    (preset.slots ?? []).forEach(slot => {
+      const slotId = slot.id.trim();
+      if (slotId && !(slotId in bindings)) {
+        bindings[slotId] = null;
+      }
+    });
+    return bindings;
+  }
+
+  private applyAdvancedMetadataToPresetTree(
+    element: UIElement,
+    preset: UIAdvancedPresetDefinition,
+    options?: { name?: string; customOptions?: Record<string, unknown> }
+  ): UIElement {
+    const assign = (node: UIElement, parentId: string | null, isRoot: boolean): UIElement => {
+      const normalizedChildren = (node.children ?? []).map(child => assign(child, node.id, false));
+
+      return {
+        ...node,
+        parent: parentId,
+        name: isRoot && options?.name ? options.name : node.name,
+        advancedMetadata: isRoot
+          ? {
+              presetId: preset.id,
+              presetVersion: preset.version,
+              isRoot: true,
+              slotBindings: this.buildSlotBindingSeed(preset),
+              customOptions: options?.customOptions ? { ...options.customOptions } : {},
+            }
+          : null,
+        children: normalizedChildren,
+      };
+    };
+
+    return assign(element, null, true);
   }
 
   private insertCloneAtLocation(clone: UIElement, parentId: string | null, insertIndex: number): UIElement | null {
@@ -702,7 +945,7 @@ export class UiBuilderService {
     return Math.min(Math.max(index, 0), length);
   }
 
-  generateExportArtifacts(): UIExportArtifacts {
+  async generateExportArtifacts(): Promise<UIExportArtifacts> {
     const elements = this._elements();
     const params = elements.map(element => this.serializeElement(element));
     const paramsJson = JSON.stringify(params, null, 2);
@@ -711,6 +954,18 @@ export class UiBuilderService {
     const timestamp = new Date().toLocaleString();
     const typescriptSnippets = this.buildTypescriptSnippets(elements, params, strings, timestamp);
     const typescriptCode = this.buildTypescriptCode(typescriptSnippets, timestamp);
+  const presets = this._advancedPresets();
+  const snippetList = typescriptSnippets.map(s => ({ elementId: s.elementId, variableName: s.variableName }));
+  const advancedClasses = await builder_buildAdvancedExportClasses(
+      elements,
+      presets,
+      snippetList,
+      this.serializeParamToTypescript.bind(this),
+      this.serializeElement.bind(this),
+      strings,
+      timestamp);
+
+  const advancedTypescriptCode = builder_buildAdvancedTypescriptCode(advancedClasses);
 
     return {
       params,
@@ -719,12 +974,14 @@ export class UiBuilderService {
       stringsJson,
       typescriptCode,
       typescriptSnippets,
+      advancedClasses,
+      advancedTypescriptCode,
     };
   }
 
   // Legacy support for existing callers expecting raw JSON
-  exportToJson(): string {
-    return this.generateExportArtifacts().paramsJson;
+  async exportToJson(): Promise<string> {
+    return (await this.generateExportArtifacts()).paramsJson;
   }
 
   importFromTypescript(
@@ -789,12 +1046,12 @@ export class UiBuilderService {
     this._autoSaveIntervalId = window.setInterval(() => this.saveProjectToCookie(), AUTOSAVE_INTERVAL_MS);
   }
 
-  private saveProjectToCookie(): void {
+  private async saveProjectToCookie(): Promise<void> {
     if (!this.isBrowserEnvironment()) {
       return;
     }
 
-    const artifacts = this.generateExportArtifacts();
+    const artifacts = await this.generateExportArtifacts();
     const payload: UIPersistedPayload = {
       version: 1,
       savedAt: new Date().toISOString(),
@@ -892,6 +1149,7 @@ export class UiBuilderService {
               ...node,
               parent: parentId,
               locked: typeof node.locked === 'boolean' ? node.locked : false,
+              advancedMetadata: this.cloneAdvancedMetadata(node.advancedMetadata as UIAdvancedElementInstance | null | undefined),
               children,
             } as UIElement;
           })
@@ -965,6 +1223,7 @@ export class UiBuilderService {
       buttonAlphaHover: this.ensureNumber(param.buttonAlphaHover, base.buttonAlphaHover),
       buttonColorFocused: this.cloneVectorWithFallback(param.buttonColorFocused, base.buttonColorFocused),
       buttonAlphaFocused: this.ensureNumber(param.buttonAlphaFocused, base.buttonAlphaFocused),
+      advancedMetadata: this.cloneAdvancedMetadata(param.advancedMetadata),
       children: [],
     };
 
@@ -1146,7 +1405,7 @@ export class UiBuilderService {
   }
 
   private serializeElement(element: UIElement): UIParams {
-    const { id, children = [], locked, ...rest } = element;
+    const { id, children = [], locked, advancedMetadata, ...rest } = element;
     const serializedChildren = children.map(child => this.serializeElement(child));
 
     return {
@@ -1232,11 +1491,11 @@ export class UiBuilderService {
       pushLine(`${propIndent}textColor: ${this.formatNumberArray(param.textColor)}`);
       pushLine(`${propIndent}textAlpha: ${this.formatNumber(param.textAlpha)}`);
       pushLine(`${propIndent}textSize: ${this.formatNumber(param.textSize)}`);
-      pushLine(`${propIndent}textAnchor: ${this.formatEnumValue('UIAnchor', UIAnchor, param.textAnchor)}`);
+      pushLine(`${propIndent}textAnchor: ${this.formatEnumValue('UIAnchor', UIAnchor, param?.textAnchor ?? UIAnchor.TopLeft)}`);
     }
 
     if (elementType === "Image") {
-      pushLine(`${propIndent}imageType: ${this.formatEnumValue('UIImageType', UIImageType, param.imageType)}`);
+      pushLine(`${propIndent}imageType: ${this.formatEnumValue('UIImageType', UIImageType, param?.imageType ?? UIImageType.None)}`);
       pushLine(`${propIndent}imageColor: ${this.formatNumberArray(param.imageColor)}`);
       pushLine(`${propIndent}imageAlpha: ${this.formatNumber(param.imageAlpha)}`);
     }
