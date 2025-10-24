@@ -117,7 +117,7 @@ const blueprint: UIParams = {
         bgColor: [0.2, 0.2, 0.2],
         bgAlpha: 1,
         bgFill: UIBgFill.None,
-        textLabel: "0",
+        textLabel: "{}",
         textColor: [1, 1, 1],
         textAlpha: 1,
         textSize: 38,

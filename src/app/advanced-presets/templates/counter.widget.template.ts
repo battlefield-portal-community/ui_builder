@@ -33,7 +33,7 @@ export class {{CLASS_NAME}} {
 
   private refreshUi(): void {
     if (!this.textWidget) return;
-    mod.SetUITextLabel(this.textWidget, mod.Message(this.counterValue.toString()));
+    mod.SetUITextLabel(this.textWidget, mod.Message(this.counterValue.toString(), mod.stringkeys.CounterText, this.counterValue));
   }
 
 }
