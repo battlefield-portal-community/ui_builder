@@ -20,14 +20,16 @@ BfUiBuilder is a browser-based layout designer for Battlefield Portal user inter
 - Padding
 - Drag and drop in the element hierarchy
 - More example backgrounds
-- Support more resolutions than just 1080p altough the current resolution is faked
 - Save and continue later (are cookies enough ?)
 - Better error logging
+- Flexbox and grid behavior for auto layout rules in designer
 
-- Advanced generation mode where the tool exports a class that exposes individual widgets as variables and methods that help interact with them
-	- Tab and menus with code that handles showing and hiding the correct page
-	- Different text elements with datetimes, count downs or other popular presets with corresponding handling code
-	- Progress bars (animation?)
+### Advanced widgets
+- Tab and menus with code that handles showing and hiding the correct page
+- Different text elements with datetimes, count downs or other popular presets with corresponding handling code
+- Progress bars (animation?)
+- List of elements
+- Buttons with text
 
 ## Bugs
 - Ability to add sub elements to a text container (need to test in game if that's legal)
