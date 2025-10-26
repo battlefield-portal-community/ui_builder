@@ -453,20 +453,35 @@ export class UiBuilderService {
     } as UIElement;
   }
 
+  private canElementAcceptChildren(element: UIElement | null | undefined): boolean {
+    if (!element) {
+      return true;
+    }
+
+    return element.type === 'Container';
+  }
+
   // Add element to root or selected element
   addElement(type: UIElementTypes, name?: string): void {
-    const newElement = this.createUIElement(type, name);
     const selectedId = this._selectedElementId();
+    const parent = selectedId ? this.findElementById(selectedId) : null;
 
-    if (selectedId) {
-      // Add to selected element
-      this.addElementToParent(newElement, selectedId);
+    if (selectedId && !parent) {
+      this._selectedElementId.set(null);
+    }
+
+    if (parent && !this.canElementAcceptChildren(parent)) {
+      return;
+    }
+
+    const newElement = this.createUIElement(type, name);
+
+    if (parent) {
+      this.addElementToParent(newElement, parent.id);
     } else {
-      // Add to root
       this._elements.update(elements => [...elements, newElement]);
     }
 
-    // Select the newly added element
     this._selectedElementId.set(newElement.id);
   }
 

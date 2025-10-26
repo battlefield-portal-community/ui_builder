@@ -10,9 +10,12 @@
     <div class="element-types">
       @for (type of elementTypes; track type) {
         <button 
+          type="button"
           class="element-type-btn"
           (click)="addElement(type)"
-          [title]="'Add ' + type + (selectedElement() ? ' to ' + selectedElement()?.name : ' to root')"
+          [disabled]="isAddButtonDisabled(type)"
+          [title]="getAddButtonTitle(type)"
+          [style.opacity]="isAddButtonDisabled(type) ? 0.2 : 1"
         >
           <span class="element-icon">{{getElementIcon(type)}}</span>
           <span class="element-label">{{type}}</span>

@@ -21,12 +21,36 @@ export class SideMenuComponent {
   advancedPresets = computed(() => this.uiBuilder.advancedPresets());
   hasAdvancedPresets = computed(() => this.advancedPresets().length > 0);
   showAdvancedPresets = signal(false);
+  canAddChildElements = computed(() => {
+    const selected = this.selectedElement();
+    if (!selected) {
+      return true;
+    }
+    return selected.type === 'Container';
+  });
 
   constructor(private uiBuilder: UiBuilderService) {
   }
 
   addElement(type: UIElementTypes) {
     this.uiBuilder.addElement(type);
+  }
+
+  isAddButtonDisabled(_type: UIElementTypes): boolean {
+    return !this.canAddChildElements();
+  }
+
+  getAddButtonTitle(type: UIElementTypes): string {
+    const selected = this.selectedElement();
+    if (!selected) {
+      return `Add ${type} to root`;
+    }
+
+    if (selected.type !== 'Container') {
+      return 'Select a container to add child elements';
+    }
+
+    return `Add ${type} to ${selected.name}`;
   }
 
   addAdvancedPreset(presetId: string) {
