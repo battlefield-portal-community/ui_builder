@@ -14,10 +14,15 @@ import {
   UIElementBounds,
   UIRect,
   UIAdvancedPresetDefinition,
+  UIAdvancedPresetSlotDefinition,
   UIAdvancedElementInstance,
+  UIAdvancedSlotBindingMap,
+  UIAdvancedSlotBindingValue,
+  UIAdvancedSlotMultiplicity,
 } from '../../models/types';
 import { registerAllAdvancedPresets } from '../advanced-presets/registry';
 import { buildAdvancedExportClasses as builder_buildAdvancedExportClasses, buildAdvancedTypescriptCode as builder_buildAdvancedTypescriptCode } from './export/advanced-export.builder';
+import { TAB_MENU_ID } from '../advanced-presets/tab-menu.preset';
 
 const DEFAULT_CANVAS_BACKGROUND_IMAGE: CanvasBackgroundAsset = {
   id: 'default-grid',
@@ -280,27 +285,39 @@ export class UiBuilderService {
     return !!element?.advancedMetadata?.isRoot;
   }
 
-  getAdvancedSlotBindings(elementId: string): Record<string, string | null> | null {
+  getAdvancedSlotBindings(elementId: string): UIAdvancedSlotBindingMap | null {
     const element = this.findElementById(elementId);
     if (!element?.advancedMetadata?.isRoot) {
       return null;
     }
-    return { ...element.advancedMetadata.slotBindings };
+    return this.cloneSlotBindings(element.advancedMetadata.slotBindings);
   }
 
-  updateAdvancedSlotBinding(rootElementId: string, slotId: string, targetElementId: string | null): void {
+  updateAdvancedSlotBinding(rootElementId: string, slotId: string, value: string | string[] | null): void {
     this._elements.update(elements => {
       return this.updateElementRecursive(elements, rootElementId, (element) => {
         if (!element.advancedMetadata?.isRoot) {
           return element;
         }
 
-        const nextBindings = { ...element.advancedMetadata.slotBindings };
-        if (!(slotId in nextBindings)) {
+        const currentBindings = element.advancedMetadata.slotBindings;
+        if (!(slotId in currentBindings)) {
           return element;
         }
 
-        nextBindings[slotId] = targetElementId;
+        const preset = this.findAdvancedPreset(element.advancedMetadata.presetId);
+        const slotDefinition = this.findPresetSlotDefinition(preset, slotId);
+        const normalizedValue = this.normalizeSlotBindingValue(slotDefinition, value);
+        const currentValue = currentBindings[slotId];
+
+        if (!this.slotBindingChanged(currentValue, normalizedValue)) {
+          return element;
+        }
+
+        const nextBindings = {
+          ...this.cloneSlotBindings(currentBindings),
+          [slotId]: normalizedValue,
+        };
 
         return {
           ...element,
@@ -311,6 +328,178 @@ export class UiBuilderService {
         };
       });
     });
+  }
+
+  private cloneSlotBindings(bindings: UIAdvancedSlotBindingMap | null | undefined): UIAdvancedSlotBindingMap {
+    const result: UIAdvancedSlotBindingMap = {};
+    if (!bindings) {
+      return result;
+    }
+
+    for (const [key, value] of Object.entries(bindings)) {
+      result[key] = Array.isArray(value) ? [...value] : value;
+    }
+
+    return result;
+  }
+
+  private findPresetSlotDefinition(
+    preset: UIAdvancedPresetDefinition | null | undefined,
+    slotId: string
+  ): UIAdvancedPresetSlotDefinition | null {
+    if (!preset?.slots?.length) {
+      return null;
+    }
+
+    const trimmedId = slotId?.trim();
+    if (!trimmedId) {
+      return null;
+    }
+
+    return preset.slots.find(slot => slot.id === trimmedId) ?? null;
+  }
+
+  private getSlotMultiplicity(slot: UIAdvancedPresetSlotDefinition | null | undefined): UIAdvancedSlotMultiplicity {
+    if (slot?.multiplicity === 'list') {
+      return 'list';
+    }
+    return 'single';
+  }
+
+  private normalizeSlotBindingValue(
+    slot: UIAdvancedPresetSlotDefinition | null,
+    value: string | string[] | null
+  ): UIAdvancedSlotBindingValue {
+    const multiplicity = this.getSlotMultiplicity(slot);
+
+    if (multiplicity === 'single') {
+      if (Array.isArray(value)) {
+        return value.length ? value[0] ?? null : null;
+      }
+      return value ?? null;
+    }
+
+    const arraySource = Array.isArray(value) ? value : (value ? [value] : []);
+    const cleaned = arraySource
+      .map(item => (typeof item === 'string' ? item.trim() : ''))
+      .filter(item => item.length > 0);
+    const unique = Array.from(new Set(cleaned));
+
+    const maxItems = typeof slot?.maxItems === 'number' && slot.maxItems >= 0 ? slot.maxItems : null;
+    const limited = maxItems !== null ? unique.slice(0, maxItems) : unique;
+
+    return limited;
+  }
+
+  private slotBindingChanged(
+    currentValue: UIAdvancedSlotBindingValue,
+    nextValue: UIAdvancedSlotBindingValue
+  ): boolean {
+    const currentIsArray = Array.isArray(currentValue);
+    const nextIsArray = Array.isArray(nextValue);
+
+    if (currentIsArray || nextIsArray) {
+      if (!currentIsArray || !nextIsArray) {
+        return true;
+      }
+
+      if (currentValue.length !== nextValue.length) {
+        return true;
+      }
+
+      for (let index = 0; index < currentValue.length; index++) {
+        if (currentValue[index] !== nextValue[index]) {
+          return true;
+        }
+      }
+
+      return false;
+    }
+
+    return currentValue !== nextValue;
+  }
+
+  private normalizeSlotCount(value: unknown): number | undefined {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return undefined;
+    }
+
+    const normalized = Math.max(0, Math.floor(value));
+    return normalized;
+  }
+
+  private decorateAdvancedPresetInstance(
+    root: UIElement,
+    preset: UIAdvancedPresetDefinition
+  ): UIElement {
+    if (preset.id === TAB_MENU_ID) {
+      return this.decorateTabMenuInstance(root);
+    }
+
+    return root;
+  }
+
+  private decorateTabMenuInstance(root: UIElement): UIElement {
+    if (!root.advancedMetadata) {
+      return root;
+    }
+
+    const findChildByName = (parent: UIElement | null | undefined, name: string): UIElement | null => {
+      if (!parent?.children?.length) {
+        return null;
+      }
+      return parent.children.find(child => child.name === name) ?? null;
+    };
+
+  const header = findChildByName(root, 'TabMenuHeader');
+    const buttonRow = findChildByName(header, 'TabButtonRow');
+    const pagesContainer = findChildByName(root, 'TabPagesContainer');
+
+    if (header) {
+      header.locked = true;
+    }
+
+    if (buttonRow) {
+      buttonRow.locked = true;
+    }
+
+    if (pagesContainer) {
+      pagesContainer.locked = true;
+    }
+
+    const tabButtons = buttonRow?.children?.filter(child => child.type === 'Button') ?? [];
+    const tabPages = pagesContainer?.children?.filter(child => child.type === 'Container') ?? [];
+
+    // Ensure page containers remain editable for designers
+    tabPages.forEach(page => {
+      page.locked = false;
+    });
+
+    const buttonIds = tabButtons.map(button => button.id);
+    const pageIds = tabPages.map(page => page.id);
+
+    const metadata = root.advancedMetadata;
+    const sourceCustomOptions = metadata.customOptions ?? {};
+    const defaultIndexSource = sourceCustomOptions['defaultTabIndex'];
+    const normalizedDefaultIndex = typeof defaultIndexSource === 'number'
+      ? Math.max(0, Math.floor(defaultIndexSource))
+      : 0;
+
+    const customOptions = {
+      ...sourceCustomOptions,
+      tabButtons: buttonIds,
+      tabPages: pageIds,
+      defaultTabIndex: normalizedDefaultIndex,
+    } as Record<string, unknown>;
+
+    metadata.customOptions = customOptions;
+
+    metadata.slotBindings = {
+      ...metadata.slotBindings,
+      tabContent: [...pageIds],
+    };
+
+    return root;
   }
 
   getElementBounds(elementId: string): UIElementBounds | null {
@@ -835,7 +1024,7 @@ export class UiBuilderService {
       presetId: metadata.presetId,
       presetVersion: metadata.presetVersion,
       isRoot: metadata.isRoot,
-      slotBindings: { ...metadata.slotBindings },
+      slotBindings: this.cloneSlotBindings(metadata.slotBindings),
       customOptions: metadata.customOptions ? { ...metadata.customOptions } : undefined,
     };
   }
@@ -857,11 +1046,23 @@ export class UiBuilderService {
           return null;
         }
 
+        const multiplicity: UIAdvancedSlotMultiplicity = slot.multiplicity === 'list' ? 'list' : 'single';
+        const allowedTypes = slot.allowedTypes ? [...slot.allowedTypes] : undefined;
+        const minItems = multiplicity === 'list' ? this.normalizeSlotCount(slot.minItems) : undefined;
+        const maxItems = multiplicity === 'list'
+          ? slot.maxItems === null
+            ? null
+            : this.normalizeSlotCount(slot.maxItems)
+          : undefined;
+
         return {
           ...slot,
           id: slotId,
           label: slot.label?.trim() || slotId,
-          allowedTypes: slot.allowedTypes ? [...slot.allowedTypes] : undefined,
+          allowedTypes,
+          multiplicity,
+          minItems,
+          maxItems,
         };
       })
       .filter((slot): slot is NonNullable<typeof slot> => !!slot);
@@ -887,13 +1088,16 @@ export class UiBuilderService {
     return this._advancedPresets().find(option => option.id === trimmed) ?? null;
   }
 
-  private buildSlotBindingSeed(preset: UIAdvancedPresetDefinition): Record<string, string | null> {
-    const bindings: Record<string, string | null> = {};
+  private buildSlotBindingSeed(preset: UIAdvancedPresetDefinition): UIAdvancedSlotBindingMap {
+    const bindings: UIAdvancedSlotBindingMap = {};
     (preset.slots ?? []).forEach(slot => {
       const slotId = slot.id.trim();
-      if (slotId && !(slotId in bindings)) {
-        bindings[slotId] = null;
+      if (!slotId || slotId in bindings) {
+        return;
       }
+
+      const multiplicity = this.getSlotMultiplicity(slot);
+      bindings[slotId] = multiplicity === 'list' ? [] : null;
     });
     return bindings;
   }
@@ -923,7 +1127,8 @@ export class UiBuilderService {
       };
     };
 
-    return assign(element, null, true);
+    const withMetadata = assign(element, null, true);
+    return this.decorateAdvancedPresetInstance(withMetadata, preset);
   }
 
   private insertCloneAtLocation(clone: UIElement, parentId: string | null, insertIndex: number): UIElement | null {

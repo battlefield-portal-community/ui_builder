@@ -59,6 +59,9 @@ type UIVector = number[];
  * @property {string} [description] - Optional explanation of the slot's purpose
  * @property {boolean} [required] - Whether this slot must be filled (not yet implemented)
  * @property {UIElementTypes[]} [allowedTypes] - Restricts which element types can fill this slot
+ * @property {UIAdvancedSlotMultiplicity} [multiplicity] - Whether the slot accepts a single element or a list; defaults to `single`
+ * @property {number} [minItems] - Minimum element count for list slots (enforced by UI logic)
+ * @property {number | null} [maxItems] - Maximum element count for list slots (`null` = no limit)
  * 
  * @example
  * ```typescript
@@ -70,12 +73,17 @@ type UIVector = number[];
  * };
  * ```
  */
+export type UIAdvancedSlotMultiplicity = 'single' | 'list';
+
 export interface UIAdvancedPresetSlotDefinition {
     id: string;
     label: string;
     description?: string;
     required?: boolean;
     allowedTypes?: UIElementTypes[];
+    multiplicity?: UIAdvancedSlotMultiplicity;
+    minItems?: number;
+    maxItems?: number | null;
 }
 
 /**
@@ -147,7 +155,7 @@ export interface UIAdvancedPresetDefinition {
  * @property {string} presetId - ID of the preset this element belongs to
  * @property {string} presetVersion - Version of the preset for compatibility tracking
  * @property {boolean} isRoot - True if this is the root element of the preset instance
- * @property {Record<string, string | null>} slotBindings - Maps slot IDs to element IDs
+ * @property {UIAdvancedSlotBindingMap} slotBindings - Maps slot IDs to element IDs or lists of IDs
  * @property {Record<string, unknown>} [customOptions] - Optional preset-specific settings
  * 
  * @example
@@ -161,11 +169,14 @@ export interface UIAdvancedPresetDefinition {
  * };
  * ```
  */
+export type UIAdvancedSlotBindingValue = string | null | string[];
+export type UIAdvancedSlotBindingMap = Record<string, UIAdvancedSlotBindingValue>;
+
 export interface UIAdvancedElementInstance {
     presetId: string;
     presetVersion: string;
     isRoot: boolean;
-    slotBindings: Record<string, string | null>;
+    slotBindings: UIAdvancedSlotBindingMap;
     customOptions?: Record<string, unknown>;
 }
 
