@@ -139,7 +139,7 @@ export class UiBuilderService {
   private _canvasBackgroundImages = signal<CanvasBackgroundAsset[]>([]);
   private _uploadedObjectUrls = new Set<string>();
   private _snapToElements = signal<boolean>(true);
-  private _showContainerLabels = signal<boolean>(true);
+  private _showContainerLabels = signal<boolean>(false);
   private _advancedPresets = signal<UIAdvancedPresetDefinition[]>([]);
   private _copiedElements: {
     items: Array<{

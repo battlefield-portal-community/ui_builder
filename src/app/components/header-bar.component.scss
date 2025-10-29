@@ -127,7 +127,9 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  flex: none;
+  /* allow this block to shrink when placed inside the modal grid column */
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
 }
 
@@ -270,4 +272,23 @@
     flex-wrap: wrap;
     gap: 12px;
   }
+}
+
+.settings-modal .background-mode {
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.settings-modal .background-mode__label {
+  flex: 0 0 100%;
+}
+
+.settings-modal .background-image-controls,
+.settings-modal .background-solid {
+  flex: 0 0 100%;
+}
+
+.settings-modal .background-image-controls {
+  justify-content: flex-start;
 }

@@ -244,6 +244,19 @@ html, body {
   }
 }
 
+/* settings-modal: make left column flexible and keep controls readable on the right */
+.settings-modal {
+  max-width: 920px;
+}
+
+@media (min-width: 900px) {
+  .settings-modal .export-modal__body {
+    /* left area flexible for carousels, right side a fixed column for toggles */
+    grid-template-columns: 1fr 320px;
+    align-items: start;
+  }
+}
+
 .export-section {
   background: #262626;
   border: 1px solid #333;

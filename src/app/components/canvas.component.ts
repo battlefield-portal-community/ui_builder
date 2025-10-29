@@ -15,7 +15,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: false }) canvasElement!: ElementRef<HTMLDivElement>;
 
   // Canvas dimensions (scaled down from 1920x1080)
-  scale = 0.5; // Scale factor for display
+  readonly scale = signal(0.5); // Scale factor for display
   private readonly minScale = 0.25;
   private readonly maxScale = 2;
   private readonly zoomStep = 0.15;
@@ -31,9 +31,9 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     centerY: CANVAS_HEIGHT / 2,
   };
   readonly snapGuides = signal<{ vertical: number[]; horizontal: number[] }>({ vertical: [], horizontal: [] });
-  readonly canvasWidth = computed(() => CANVAS_WIDTH * this.scale);
-  readonly canvasHeight = computed(() => CANVAS_HEIGHT * this.scale);
-  readonly scalePercent = computed(() => Math.round(this.scale * 100));
+  readonly canvasWidth = computed(() => CANVAS_WIDTH * this.scale());
+  readonly canvasHeight = computed(() => CANVAS_HEIGHT * this.scale());
+  readonly scalePercent = computed(() => Math.round(this.scale() * 100));
 
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
@@ -137,11 +137,11 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     const safeOffsetY = Math.min(Math.max(pointerOffsetY, 0), canvasRect.height || 0);
     const previousScrollLeft = containerEl.scrollLeft;
     const previousScrollTop = containerEl.scrollTop;
-    const previousScale = this.scale;
+    const previousScale = this.scale();
     const zoomMultiplier = event.deltaY < 0 ? 1 + this.zoomStep : 1 / (1 + this.zoomStep);
     this.updateScale(previousScale * zoomMultiplier);
 
-    const scaleRatio = this.scale / previousScale;
+    const scaleRatio = this.scale() / previousScale;
 
     if (scaleRatio === 1) {
       return;
@@ -163,11 +163,11 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (Math.abs(clamped - this.scale) < 0.0001) {
+    if (Math.abs(clamped - this.scale()) < 0.0001) {
       return;
     }
 
-    this.scale = clamped;
+    this.scale.set(clamped);
   }
 
   private normalizeScrollPosition(
@@ -271,8 +271,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     const canvasRect = this.canvasElement.nativeElement.getBoundingClientRect();
     
     // Calculate mouse position relative to canvas in game coordinates
-    const mouseGameX = (event.clientX - canvasRect.left) / this.scale;
-    const mouseGameY = (event.clientY - canvasRect.top) / this.scale;
+    const mouseGameX = (event.clientX - canvasRect.left) / this.scale();
+    const mouseGameY = (event.clientY - canvasRect.top) / this.scale();
 
     this.dragPointerStart.x = mouseGameX;
     this.dragPointerStart.y = mouseGameY;
@@ -352,8 +352,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     const canvasRect = this.canvasElement.nativeElement.getBoundingClientRect();
     
     // Store starting mouse position in game coordinates
-    this.resizeStartMouse.x = (event.clientX - canvasRect.left) / this.scale;
-    this.resizeStartMouse.y = (event.clientY - canvasRect.top) / this.scale;
+    this.resizeStartMouse.x = (event.clientX - canvasRect.left) / this.scale();
+    this.resizeStartMouse.y = (event.clientY - canvasRect.top) / this.scale();
     
     // Store starting size
     this.resizeStartSize.width = element.size[0];
@@ -379,8 +379,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     }
 
     const canvasRect = this.canvasElement.nativeElement.getBoundingClientRect();
-    const mouseGameX = (event.clientX - canvasRect.left) / this.scale;
-    const mouseGameY = (event.clientY - canvasRect.top) / this.scale;
+    const mouseGameX = (event.clientX - canvasRect.left) / this.scale();
+    const mouseGameY = (event.clientY - canvasRect.top) / this.scale();
 
     if (!this.isDragging) {
       this.clearSnapGuides();
@@ -687,16 +687,16 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
     if (!parent) {
       return {
-        x: elementAbsolute.x * this.scale,
-        y: elementAbsolute.y * this.scale
+        x: elementAbsolute.x * this.scale(),
+        y: elementAbsolute.y * this.scale()
       };
     }
 
     const parentAbsolute = this.getAbsoluteGamePosition(parent);
 
     return {
-      x: (elementAbsolute.x - parentAbsolute.x) * this.scale,
-      y: (elementAbsolute.y - parentAbsolute.y) * this.scale
+      x: (elementAbsolute.x - parentAbsolute.x) * this.scale(),
+      y: (elementAbsolute.y - parentAbsolute.y) * this.scale()
     };
   }
 
@@ -727,8 +727,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   private calculateSize(element: UIElement): { width: number, height: number } {
     const [width, height] = element.size;
     return {
-      width: width * this.scale,
-      height: height * this.scale
+      width: width * this.scale(),
+      height: height * this.scale()
     };
   }
 
@@ -765,8 +765,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
   private updateSnapGuides(verticalGuide: number | null, horizontalGuide: number | null): void {
     this.snapGuides.set({
-      vertical: verticalGuide !== null ? [verticalGuide * this.scale] : [],
-      horizontal: horizontalGuide !== null ? [horizontalGuide * this.scale] : [],
+      vertical: verticalGuide !== null ? [verticalGuide * this.scale()] : [],
+      horizontal: horizontalGuide !== null ? [horizontalGuide * this.scale()] : [],
     });
   }
 
@@ -880,7 +880,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
         style['background-color'] = baseFill;
         break;
       case UIBgFill.Blur: {
-        const blurRadius = `${Math.max(6, Math.round(14 * this.scale))}px`;
+        const blurRadius = `${Math.max(6, Math.round(14 * this.scale()))}px`;
         style['background-color'] = baseFill;
         style['opacity'] = '0.8';
         style['backdrop-filter'] = `blur(${blurRadius})`;
@@ -921,7 +921,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     const alignment = this.getTextAlignment(element?.textAnchor ?? UIAnchor.Center);
     return {
       color: this.colorToRgba(element?.textColor ?? [1, 1, 1], element.textAlpha ?? 1),
-      fontSize: `${(element?.textSize ?? 1) * this.scale}px`,
+      fontSize: `${(element?.textSize ?? 1) * this.scale()}px`,
       padding: `${element.padding}px`,
       display: 'flex',
       justifyContent: alignment.justifyContent,
@@ -945,7 +945,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     return {
       backgroundColor: this.colorToRgba(element?.buttonColorBase ?? [1, 1, 1], element.buttonAlphaBase ?? 1),
       color: this.colorToRgba(element?.textColor ?? [1, 1, 1], element.textAlpha ?? 1),
-      fontSize: `${(element?.textSize ?? 1) * this.scale}px`,
+      fontSize: `${(element?.textSize ?? 1) * this.scale()}px`,
       padding: `${element.padding}px`,
     };
   }

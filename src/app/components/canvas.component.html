@@ -3,21 +3,21 @@
     #canvas 
     class="canvas" 
     [class.is-panning]="isPanning"
-    [style.width.px]="canvasWidth"
-    [style.height.px]="canvasHeight"
+    [style.width.px]="canvasWidth()"
+    [style.height.px]="canvasHeight()"
     [ngStyle]="canvasStyle()"
     (mousedown)="onCanvasMouseDown($event)"
     (click)="onCanvasClick($event)"
   >
     <div class="screen-indicator">
-      1920x1080 · {{ scalePercent }}%
+      1920x1080 · {{ scalePercent() }}%
     </div>
     <div class="snap-guides">
       @for (position of snapGuides().vertical; track position) {
         <div
           class="snap-guide snap-guide-vertical"
           [style.left.px]="position"
-          [style.height.px]="canvasHeight"
+          [style.height.px]="canvasHeight()"
         ></div>
       }
 
@@ -25,7 +25,7 @@
         <div
           class="snap-guide snap-guide-horizontal"
           [style.top.px]="position"
-          [style.width.px]="canvasWidth"
+          [style.width.px]="canvasWidth()"
         ></div>
       }
     </div>

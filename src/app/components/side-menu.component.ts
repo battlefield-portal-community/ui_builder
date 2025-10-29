@@ -18,8 +18,6 @@ export class SideMenuComponent {
   selectedElementIds = computed(() => this.uiBuilder.selectedElementIds());
   selectedElementIdSet = computed(() => new Set(this.selectedElementIds()));
   selectedElement = computed(() => this.uiBuilder.getSelectedElement());
-  snapToElements = computed(() => this.uiBuilder.snapToElements());
-  showContainerLabels = computed(() => this.uiBuilder.showContainerLabels());
   advancedPresets = computed(() => this.uiBuilder.advancedPresets());
   hasAdvancedPresets = computed(() => this.advancedPresets().length > 0);
   showAdvancedPresets = signal(false);
@@ -106,17 +104,11 @@ export class SideMenuComponent {
     }
   }
 
-  setSnapToElements(enabled: boolean) {
-    this.uiBuilder.setSnapToElements(enabled);
-  }
-
-  setShowContainerLabels(enabled: boolean) {
-    this.uiBuilder.setShowContainerLabels(enabled);
-  }
 
   toggleAdvancedPresetList() {
     this.showAdvancedPresets.update(value => !value);
   }
+
 
   getElementIcon(type: UIElementTypes): string {
     switch (type) {

@@ -26,6 +26,8 @@ export class HeaderBarComponent implements OnDestroy {
   readonly exportModalOpen = signal(false);
   readonly exportArtifacts = signal<UIExportArtifacts | null>(null);
   readonly settingsModalOpen = signal(false);
+  readonly snapToElements = computed(() => this.uiBuilder.snapToElements());
+  readonly showContainerLabels = computed(() => this.uiBuilder.showContainerLabels());
   readonly importModalOpen = signal(false);
   readonly importSource = signal('');
   readonly importError = signal<string | null>(null);
@@ -56,6 +58,14 @@ export class HeaderBarComponent implements OnDestroy {
 
   setBackgroundImage(imageId: string) {
     this.uiBuilder.setCanvasBackgroundImage(imageId);
+  }
+
+  setSnapToElements(enabled: boolean) {
+    this.uiBuilder.setSnapToElements(enabled);
+  }
+
+  setShowContainerLabels(enabled: boolean) {
+    this.uiBuilder.setShowContainerLabels(enabled);
   }
 
   isBackgroundImageSelected(imageId: string): boolean {
