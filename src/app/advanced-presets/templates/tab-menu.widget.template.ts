@@ -2,12 +2,13 @@
 // Generated tab menu widget scaffold.
 // Button and page names are provided by the UI Builder metadata so designers can safely rename widgets.
 export class {{CLASS_NAME}} {
+  private static instances: {{CLASS_NAME}}[] = [];
+
   public containerWidget: mod.UIWidget | undefined;
   public tabButtons: mod.UIWidget[] = [];
   public tabPages: mod.UIWidget[] = [];
 
   private activeTabIndex = 0;
-  private handlersRegistered = false;
 
   private readonly buttonNames: string[] = JSON.parse('{{TAB_BUTTON_NAMES_JSON}}');
   private readonly pageNames: string[] = JSON.parse('{{TAB_PAGE_NAMES_JSON}}');
@@ -18,10 +19,9 @@ export class {{CLASS_NAME}} {
 {{UI_PARAMS}}
     );
     this.activeTabIndex = 0;
-    this.handlersRegistered = false;
     this.resolveWidgets();
-    this.registerButtonHandlers();
-    this.setActiveTab(this.defaultTabIndex);
+  this.setActiveTab(this.defaultTabIndex);
+  {{CLASS_NAME}}.registerInstance(this);
   }
 
   public setActiveTab(index: number): void {
@@ -56,13 +56,13 @@ export class {{CLASS_NAME}} {
   }
 
   public destroy(): void {
+    {{CLASS_NAME}}.unregisterInstance(this);
     if (this.containerWidget) {
       mod.DeleteUIWidget(this.containerWidget);
     }
     this.containerWidget = undefined;
     this.tabButtons = [];
     this.tabPages = [];
-    this.handlersRegistered = false;
     this.activeTabIndex = 0;
   }
 
@@ -76,22 +76,22 @@ export class {{CLASS_NAME}} {
       .filter((widget): widget is mod.UIWidget => !!widget);
   }
 
-  private registerButtonHandlers(): void {
-    if (this.handlersRegistered) {
-      return;
+  public handleButtonEvent(eventWidget: mod.UIWidget, eventType: mod.UIButtonEvent): boolean {
+    if (!eventWidget || eventType !== mod.UIButtonEvent.ButtonUp) {
+      return false;
     }
 
-    this.tabButtons.forEach((buttonWidget, index) => {
-      if (!buttonWidget) {
-        return;
-      }
+    if (!this.tabButtons.length) {
+      this.resolveWidgets();
+    }
 
-      mod.RegisterUIEventHandler(buttonWidget, mod.UIButtonEvent.ButtonUp, () => {
-        this.setActiveTab(index);
-      });
-    });
+    const buttonIndex = this.tabButtons.findIndex(button => button === eventWidget);
+    if (buttonIndex === -1) {
+      return false;
+    }
 
-    this.handlersRegistered = true;
+    this.setActiveTab(buttonIndex);
+    return true;
   }
 
   private refreshTabs(): void {
@@ -106,4 +106,56 @@ export class {{CLASS_NAME}} {
   private clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
   }
+
+  private static registerInstance(instance: {{CLASS_NAME}}): void {
+    if (this.instances.includes(instance)) {
+      return;
+    }
+    this.instances.push(instance);
+  }
+
+  private static unregisterInstance(instance: {{CLASS_NAME}}): void {
+    const index = this.instances.indexOf(instance);
+    if (index !== -1) {
+      this.instances.splice(index, 1);
+    }
+  }
+
+  public static dispatchButtonEvent(eventWidget: mod.UIWidget, eventType: mod.UIButtonEvent): boolean {
+    if (!this.instances.length) {
+      return false;
+    }
+
+    for (const instance of [...this.instances]) {
+      if (instance.handleButtonEvent(eventWidget, eventType)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+}
+
+const previous{{CLASS_NAME}}OnPlayerUIButtonEvent =
+  typeof globalThis !== 'undefined' && typeof (globalThis as any).OnPlayerUIButtonEvent === 'function'
+    ? (globalThis as any).OnPlayerUIButtonEvent
+    : null;
+
+export function OnPlayerUIButtonEvent(
+  eventPlayer: mod.Player,
+  eventUIWidget: mod.UIWidget,
+  eventUIButtonEvent: mod.UIButtonEvent
+): void {
+  const handled = {{CLASS_NAME}}.dispatchButtonEvent(eventUIWidget, eventUIButtonEvent);
+  if (handled) {
+    return;
+  }
+
+  if (previous{{CLASS_NAME}}OnPlayerUIButtonEvent) {
+    previous{{CLASS_NAME}}OnPlayerUIButtonEvent(eventPlayer, eventUIWidget, eventUIButtonEvent);
+  }
+}
+
+if (typeof globalThis !== 'undefined') {
+  (globalThis as any).OnPlayerUIButtonEvent = OnPlayerUIButtonEvent;
 }
