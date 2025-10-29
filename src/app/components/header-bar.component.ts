@@ -25,6 +25,7 @@ export class HeaderBarComponent implements OnDestroy {
 
   readonly exportModalOpen = signal(false);
   readonly exportArtifacts = signal<UIExportArtifacts | null>(null);
+  readonly settingsModalOpen = signal(false);
   readonly importModalOpen = signal(false);
   readonly importSource = signal('');
   readonly importError = signal<string | null>(null);
@@ -35,6 +36,14 @@ export class HeaderBarComponent implements OnDestroy {
 
   constructor(private readonly uiBuilder: UiBuilderService) {
     this.defaultBackgroundImage = this.uiBuilder.defaultCanvasBackgroundImage;
+  }
+
+  openSettingsModal() {
+    this.settingsModalOpen.set(true);
+  }
+
+  closeSettingsModal() {
+    this.settingsModalOpen.set(false);
   }
 
   ngOnDestroy() {

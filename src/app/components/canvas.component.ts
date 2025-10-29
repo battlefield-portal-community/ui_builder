@@ -15,7 +15,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   @ViewChild('canvas', { static: false }) canvasElement!: ElementRef<HTMLDivElement>;
 
   // Canvas dimensions (scaled down from 1920x1080)
-  private scale = 0.5; // Scale factor for display
+  scale = 0.5; // Scale factor for display
   private readonly minScale = 0.25;
   private readonly maxScale = 2;
   private readonly zoomStep = 0.15;
@@ -31,18 +31,9 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     centerY: CANVAS_HEIGHT / 2,
   };
   readonly snapGuides = signal<{ vertical: number[]; horizontal: number[] }>({ vertical: [], horizontal: [] });
-
-  get canvasWidth(): number {
-    return CANVAS_WIDTH * this.scale;
-  }
-
-  get canvasHeight(): number {
-    return CANVAS_HEIGHT * this.scale;
-  }
-
-  get scalePercent(): number {
-    return Math.round(this.scale * 100);
-  }
+  readonly canvasWidth = computed(() => CANVAS_WIDTH * this.scale);
+  readonly canvasHeight = computed(() => CANVAS_HEIGHT * this.scale);
+  readonly scalePercent = computed(() => Math.round(this.scale * 100));
 
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
@@ -516,6 +507,14 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
+    if ((event.ctrlKey || event.metaKey) && key === 'g') {
+      const wrapped = this.uiBuilder.wrapSelectionInContainer();
+      if (wrapped) {
+        event.preventDefault();
+      }
+      return;
+    }
+
     if (key === 'delete' || key === 'del') {
       const selectedId = this.selectedElementId();
       if (selectedId) {
@@ -548,29 +547,6 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (selectedIds.length === 1) {
-      const selectedId = selectedIds[0];
-      const element = this.uiBuilder.findElementById(selectedId);
-      if (!element) {
-        return;
-      }
-
-      const hasChildren = element.children && element.children.length > 0;
-
-      if (hasChildren) {
-        const childCount = element.children!.length;
-        const message = `Delete "${element.name}"?\n\nThis element contains ${childCount} child element${childCount > 1 ? 's' : ''} that will also be deleted.`;
-
-        if (confirm(message)) {
-          this.uiBuilder.removeElement(selectedId);
-        }
-      } else {
-        this.uiBuilder.removeElement(selectedId);
-      }
-
-      return;
-    }
-
     const elements = selectedIds
       .map(id => this.uiBuilder.findElementById(id))
       .filter((item): item is UIElement => !!item);
@@ -579,18 +555,21 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const withChildren = elements.filter(element => element.children && element.children.length > 0);
-    const messageLines = [`Delete ${elements.length} selected elements?`];
-    if (withChildren.length) {
-      messageLines.push(`\n${withChildren.length} selected element${withChildren.length > 1 ? 's' : ''} contain child elements that will also be removed.`);
+    const withChildren = elements.filter(element => element.children?.length);
+    
+    if (elements.length === 1 && withChildren.length === 1) {
+      const childCount = withChildren[0].children!.length;
+      const message = `Delete "${elements[0].name}"?\n\nThis element contains ${childCount} child element${childCount > 1 ? 's' : ''} that will also be deleted.`;
+      if (!confirm(message)) return;
+    } else if (elements.length > 1) {
+      const messageLines = [`Delete ${elements.length} selected elements?`];
+      if (withChildren.length) {
+        messageLines.push(`\n${withChildren.length} selected element${withChildren.length > 1 ? 's' : ''} contain child elements that will also be removed.`);
+      }
+      if (!confirm(messageLines.join(''))) return;
     }
 
-    if (!confirm(messageLines.join(''))) {
-      return;
-    }
-
-    const idsToRemove = Array.from(new Set(selectedIds));
-    idsToRemove.forEach(id => this.uiBuilder.removeElement(id));
+    selectedIds.forEach(id => this.uiBuilder.removeElement(id));
   }
 
   private getElementGamePosition(element: UIElement): { x: number, y: number } {
@@ -618,69 +597,32 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
   private getAnchorStartCoordinates(anchor: UIAnchor, parentElement?: UIElement | null): { x: number, y: number } {
     // Use parent dimensions if this is a child element, otherwise use canvas dimensions
-    const width = parentElement ? parentElement.size[0] : CANVAS_WIDTH;
-    const height = parentElement ? parentElement.size[1] : CANVAS_HEIGHT;
+    const width = parentElement?.size[0] ?? CANVAS_WIDTH;
+    const height = parentElement?.size[1] ?? CANVAS_HEIGHT;
     
-    switch (anchor) {
-      case UIAnchor.TopLeft:
-        return { x: 0, y: 0 };
-      case UIAnchor.TopCenter:
-        return { x: width / 2, y: 0 };
-      case UIAnchor.TopRight:
-        return { x: width, y: 0 };
-      case UIAnchor.CenterLeft:
-        return { x: 0, y: height / 2 };
-      case UIAnchor.Center:
-        return { x: width / 2, y: height / 2 };
-      case UIAnchor.CenterRight:
-        return { x: width, y: height / 2 };
-      case UIAnchor.BottomLeft:
-        return { x: 0, y: height };
-      case UIAnchor.BottomCenter:
-        return { x: width / 2, y: height };
-      case UIAnchor.BottomRight:
-        return { x: width, y: height };
-      default:
-        return { x: 0, y: 0 };
-    }
+    const isLeft = [UIAnchor.TopLeft, UIAnchor.CenterLeft, UIAnchor.BottomLeft].includes(anchor);
+    const isRight = [UIAnchor.TopRight, UIAnchor.CenterRight, UIAnchor.BottomRight].includes(anchor);
+    const isTop = [UIAnchor.TopLeft, UIAnchor.TopCenter, UIAnchor.TopRight].includes(anchor);
+    const isBottom = [UIAnchor.BottomLeft, UIAnchor.BottomCenter, UIAnchor.BottomRight].includes(anchor);
+
+    return {
+      x: isLeft ? 0 : isRight ? width : width / 2,
+      y: isTop ? 0 : isBottom ? height : height / 2,
+    };
   }
 
   private getAnchorOffset(anchor: UIAnchor, size: number[]): { x: number, y: number } {
     const [width, height] = size;
-    let offsetX = 0;
-    let offsetY = 0;
+    
+    const isLeft = [UIAnchor.TopLeft, UIAnchor.CenterLeft, UIAnchor.BottomLeft].includes(anchor);
+    const isRight = [UIAnchor.TopRight, UIAnchor.CenterRight, UIAnchor.BottomRight].includes(anchor);
+    const isTop = [UIAnchor.TopLeft, UIAnchor.TopCenter, UIAnchor.TopRight].includes(anchor);
+    const isBottom = [UIAnchor.BottomLeft, UIAnchor.BottomCenter, UIAnchor.BottomRight].includes(anchor);
 
-    switch (anchor) {
-      case UIAnchor.TopCenter:
-      case UIAnchor.Center:
-      case UIAnchor.BottomCenter:
-        offsetX = -width / 2;
-        break;
-      case UIAnchor.TopRight:
-      case UIAnchor.CenterRight:
-      case UIAnchor.BottomRight:
-        offsetX = -width;
-        break;
-      default:
-        offsetX = 0;
-    }
-
-    switch (anchor) {
-      case UIAnchor.CenterLeft:
-      case UIAnchor.Center:
-      case UIAnchor.CenterRight:
-        offsetY = -height / 2;
-        break;
-      case UIAnchor.BottomLeft:
-      case UIAnchor.BottomCenter:
-      case UIAnchor.BottomRight:
-        offsetY = -height;
-        break;
-      default:
-        offsetY = 0;
-    }
-
-    return { x: offsetX, y: offsetY };
+    return {
+      x: isLeft ? 0 : isRight ? -width : -width / 2,
+      y: isTop ? 0 : isBottom ? -height : -height / 2,
+    };
   }
 
   private getTextAlignment(anchor: UIAnchor): {
@@ -688,50 +630,16 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     alignItems: 'flex-start' | 'center' | 'flex-end';
     textAlign: 'left' | 'center' | 'right';
   } {
-    let justifyContent: 'flex-start' | 'center' | 'flex-end' = 'center';
-    let alignItems: 'flex-start' | 'center' | 'flex-end' = 'center';
-    let textAlign: 'left' | 'center' | 'right' = 'center';
+    const isLeft = [UIAnchor.TopLeft, UIAnchor.CenterLeft, UIAnchor.BottomLeft].includes(anchor);
+    const isRight = [UIAnchor.TopRight, UIAnchor.CenterRight, UIAnchor.BottomRight].includes(anchor);
+    const isTop = [UIAnchor.TopLeft, UIAnchor.TopCenter, UIAnchor.TopRight].includes(anchor);
+    const isBottom = [UIAnchor.BottomLeft, UIAnchor.BottomCenter, UIAnchor.BottomRight].includes(anchor);
 
-    switch (anchor) {
-      case UIAnchor.TopLeft:
-      case UIAnchor.CenterLeft:
-      case UIAnchor.BottomLeft:
-        justifyContent = 'flex-start';
-        textAlign = 'left';
-        break;
-      case UIAnchor.TopCenter:
-      case UIAnchor.Center:
-      case UIAnchor.BottomCenter:
-        justifyContent = 'center';
-        textAlign = 'center';
-        break;
-      case UIAnchor.TopRight:
-      case UIAnchor.CenterRight:
-      case UIAnchor.BottomRight:
-        justifyContent = 'flex-end';
-        textAlign = 'right';
-        break;
-    }
-
-    switch (anchor) {
-      case UIAnchor.TopLeft:
-      case UIAnchor.TopCenter:
-      case UIAnchor.TopRight:
-        alignItems = 'flex-start';
-        break;
-      case UIAnchor.CenterLeft:
-      case UIAnchor.Center:
-      case UIAnchor.CenterRight:
-        alignItems = 'center';
-        break;
-      case UIAnchor.BottomLeft:
-      case UIAnchor.BottomCenter:
-      case UIAnchor.BottomRight:
-        alignItems = 'flex-end';
-        break;
-    }
-
-    return { justifyContent, alignItems, textAlign };
+    return {
+      justifyContent: isLeft ? 'flex-start' : isRight ? 'flex-end' : 'center',
+      alignItems: isTop ? 'flex-start' : isBottom ? 'flex-end' : 'center',
+      textAlign: isLeft ? 'left' : isRight ? 'right' : 'center',
+    };
   }
 
   private calculateAnchorAdjustedPosition(absoluteGameX: number, absoluteGameY: number, element: UIElement): { x: number, y: number } {
@@ -884,15 +792,15 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
       return { x: proposedX, y: proposedY };
     }
 
-    const width = element.size[0];
-    const height = element.size[1];
-
-    const baseLeft = proposedX;
-    const baseRight = proposedX + width;
-    const baseCenterX = proposedX + width / 2;
-    const baseTop = proposedY;
-    const baseBottom = proposedY + height;
-    const baseCenterY = proposedY + height / 2;
+    const [width, height] = element.size;
+    const elementEdges = {
+      left: proposedX,
+      right: proposedX + width,
+      centerX: proposedX + width / 2,
+      top: proposedY,
+      bottom: proposedY + height,
+      centerY: proposedY + height / 2,
+    };
 
     let snappedX = proposedX;
     let snappedY = proposedY;
@@ -901,184 +809,118 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     let verticalGuide: number | null = null;
     let horizontalGuide: number | null = null;
 
+    const snapChecks = [
+      { edge: 'left', axis: 'x', guide: 'vertical' },
+      { edge: 'right', axis: 'x', guide: 'vertical' },
+      { edge: 'centerX', axis: 'x', guide: 'vertical' },
+      { edge: 'top', axis: 'y', guide: 'horizontal' },
+      { edge: 'bottom', axis: 'y', guide: 'horizontal' },
+      { edge: 'centerY', axis: 'y', guide: 'horizontal' },
+    ] as const;
+
     for (const rect of candidateRects) {
-      const diffLeft = Math.abs(rect.left - baseLeft);
-      if (diffLeft < bestHorizontalDiff && diffLeft <= this.snapThreshold) {
-        bestHorizontalDiff = diffLeft;
-        snappedX = rect.left;
-        verticalGuide = rect.left;
-      }
+      for (const { edge, axis, guide } of snapChecks) {
+        const isHorizontal = axis === 'x';
+        const elementValue = elementEdges[edge];
+        const rectValue = rect[edge];
+        const diff = Math.abs(rectValue - elementValue);
 
-      const diffRight = Math.abs(rect.right - baseRight);
-      if (diffRight < bestHorizontalDiff && diffRight <= this.snapThreshold) {
-        bestHorizontalDiff = diffRight;
-        snappedX = rect.right - width;
-        verticalGuide = rect.right;
-      }
+        if (diff > this.snapThreshold) continue;
 
-      const diffCenterX = Math.abs(rect.centerX - baseCenterX);
-      if (diffCenterX < bestHorizontalDiff && diffCenterX <= this.snapThreshold) {
-        bestHorizontalDiff = diffCenterX;
-        snappedX = rect.centerX - width / 2;
-        verticalGuide = rect.centerX;
-      }
+        const bestDiff = isHorizontal ? bestHorizontalDiff : bestVerticalDiff;
+        if (diff >= bestDiff) continue;
 
-      const diffTop = Math.abs(rect.top - baseTop);
-      if (diffTop < bestVerticalDiff && diffTop <= this.snapThreshold) {
-        bestVerticalDiff = diffTop;
-        snappedY = rect.top;
-        horizontalGuide = rect.top;
-      }
-
-      const diffBottom = Math.abs(rect.bottom - baseBottom);
-      if (diffBottom < bestVerticalDiff && diffBottom <= this.snapThreshold) {
-        bestVerticalDiff = diffBottom;
-        snappedY = rect.bottom - height;
-        horizontalGuide = rect.bottom;
-      }
-
-      const diffCenterY = Math.abs(rect.centerY - baseCenterY);
-      if (diffCenterY < bestVerticalDiff && diffCenterY <= this.snapThreshold) {
-        bestVerticalDiff = diffCenterY;
-        snappedY = rect.centerY - height / 2;
-        horizontalGuide = rect.centerY;
+        if (isHorizontal) {
+          bestHorizontalDiff = diff;
+          snappedX = edge === 'right' ? rectValue - width : edge === 'centerX' ? rectValue - width / 2 : rectValue;
+          verticalGuide = rectValue;
+        } else {
+          bestVerticalDiff = diff;
+          snappedY = edge === 'bottom' ? rectValue - height : edge === 'centerY' ? rectValue - height / 2 : rectValue;
+          horizontalGuide = rectValue;
+        }
       }
     }
 
-    if (bestHorizontalDiff > this.snapThreshold) {
-      verticalGuide = null;
-    }
-
-    if (bestVerticalDiff > this.snapThreshold) {
-      horizontalGuide = null;
-    }
-
-    this.updateSnapGuides(verticalGuide, horizontalGuide);
+    this.updateSnapGuides(
+      bestHorizontalDiff <= this.snapThreshold ? verticalGuide : null,
+      bestVerticalDiff <= this.snapThreshold ? horizontalGuide : null
+    );
 
     return { x: snappedX, y: snappedY };
   }
 
   getBackgroundStyle(element: UIElement): any {
-    const clampChannel = (value: number) => Math.min(1, Math.max(0, value));
-    const normalizedBg = element.bgColor.map(channel => clampChannel(channel));
-    const alpha = clampChannel(element.bgAlpha);
-    const toRgba = (color: number[], customAlpha = alpha) =>
-      `rgba(${Math.round(clampChannel(color[0]) * 255)}, ${Math.round(clampChannel(color[1]) * 255)}, ${Math.round(clampChannel(color[2]) * 255)}, ${customAlpha})`;
-    const lighten = (color: number[], factor: number): number[] =>
-      color.map(channel => clampChannel(channel + (1 - channel) * factor));
-    const darken = (color: number[], factor: number): number[] =>
-      color.map(channel => clampChannel(channel * (1 - factor)));
+    const clamp = (value: number) => Math.min(1, Math.max(0, value));
+    const toRgba = (color: number[], alpha = clamp(element.bgAlpha)) =>
+      `rgba(${color.map(c => Math.round(clamp(c) * 255)).join(', ')}, ${alpha})`;
+    const adjust = (color: number[], factor: number): number[] =>
+      color.map(c => clamp(factor > 0 ? c + (1 - c) * factor : c * (1 + factor)));
 
+    const normalizedBg = element.bgColor.map(clamp);
     const baseFill = toRgba(normalizedBg);
     const borderColor = toRgba(normalizedBg, 1);
-    const lighterStop = toRgba(lighten(normalizedBg, 0.25));
-    const darkerStop = toRgba(darken(normalizedBg, 0.2));
+    const lighterStop = toRgba(adjust(normalizedBg, 0.25));
+    const darkerStop = toRgba(adjust(normalizedBg, -0.2));
 
     const style: Record<string, string> = {
       padding: `${element.padding}px`,
+      'background-color': 'transparent',
+      'background-image': 'none',
+      border: 'none',
+      'backdrop-filter': 'none',
+      '-webkit-backdrop-filter': 'none',
     };
 
     switch (element.bgFill) {
       case UIBgFill.None:
-        style['background-color'] = 'transparent';
-        style['background-image'] = 'none';
         style['border'] = '2px dotted rgba(150, 150, 150, 0.7)';
-        style['backdrop-filter'] = 'none';
-        style['-webkit-backdrop-filter'] = 'none';
         break;
       case UIBgFill.Solid:
         style['background-color'] = baseFill;
-        style['opacity'] = '1';
-        style['background-image'] = 'none';
-        style['border'] = 'none';
-        style['backdrop-filter'] = 'none';
-        style['-webkit-backdrop-filter'] = 'none';
         break;
       case UIBgFill.Blur: {
         const blurRadius = `${Math.max(6, Math.round(14 * this.scale))}px`;
         style['background-color'] = baseFill;
         style['opacity'] = '0.8';
-        style['background-image'] = 'none';
-        style['border'] = 'none';
         style['backdrop-filter'] = `blur(${blurRadius})`;
         style['-webkit-backdrop-filter'] = `blur(${blurRadius})`;
         break;
       }
       case UIBgFill.OutlineThin:
-        style['background-color'] = 'transparent';
-        style['background-image'] = 'none';
         style['border'] = `1px solid ${borderColor}`;
-        style['backdrop-filter'] = 'none';
-        style['-webkit-backdrop-filter'] = 'none';
         break;
       case UIBgFill.OutlineThick:
-        style['background-color'] = 'transparent';
-        style['background-image'] = 'none';
         style['border'] = `3px solid ${borderColor}`;
-        style['backdrop-filter'] = 'none';
-        style['-webkit-backdrop-filter'] = 'none';
         break;
       case UIBgFill.GradientTop:
-        style['background-color'] = 'transparent';
         style['background-image'] = `linear-gradient(to bottom, ${lighterStop}, ${darkerStop})`;
-        style['border'] = 'none';
-        style['backdrop-filter'] = 'none';
-        style['-webkit-backdrop-filter'] = 'none';
         break;
       case UIBgFill.GradientBottom:
-        style['background-color'] = 'transparent';
         style['background-image'] = `linear-gradient(to top, ${lighterStop}, ${darkerStop})`;
-        style['border'] = 'none';
-        style['backdrop-filter'] = 'none';
-        style['-webkit-backdrop-filter'] = 'none';
         break;
       case UIBgFill.GradientLeft:
-        style['background-color'] = 'transparent';
         style['background-image'] = `linear-gradient(to right, ${lighterStop}, ${darkerStop})`;
-        style['border'] = 'none';
-        style['backdrop-filter'] = 'none';
-        style['-webkit-backdrop-filter'] = 'none';
         break;
       case UIBgFill.GradientRight:
-        style['background-color'] = 'transparent';
         style['background-image'] = `linear-gradient(to left, ${lighterStop}, ${darkerStop})`;
-        style['border'] = 'none';
-        style['backdrop-filter'] = 'none';
-        style['-webkit-backdrop-filter'] = 'none';
         break;
       default:
         style['background-color'] = baseFill;
-        style['background-image'] = 'none';
-        style['border'] = 'none';
-        style['backdrop-filter'] = 'none';
-        style['-webkit-backdrop-filter'] = 'none';
         break;
-    }
-
-    if (!style['background-image']) {
-      style['background-image'] = 'none';
-    }
-    if (!style['border']) {
-      style['border'] = 'none';
-    }
-    if (!style['backdrop-filter']) {
-      style['backdrop-filter'] = 'none';
-    }
-    if (!style['-webkit-backdrop-filter']) {
-      style['-webkit-backdrop-filter'] = 'none';
-    }
-    if (!style['background-color']) {
-      style['background-color'] = 'transparent';
     }
 
     return style;
   }
 
+  private colorToRgba(color: number[], alpha: number): string {
+    return `rgba(${color.map(c => Math.round(Math.min(1, Math.max(0, c)) * 255)).join(', ')}, ${alpha})`;
+  }
+
   getTextStyle(element: UIElement): any {
-    const [r, g, b] = element?.textColor ?? [1, 1, 1];
     const alignment = this.getTextAlignment(element?.textAnchor ?? UIAnchor.Center);
     return {
-      color: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.textAlpha})`,
+      color: this.colorToRgba(element?.textColor ?? [1, 1, 1], element.textAlpha ?? 1),
       fontSize: `${(element?.textSize ?? 1) * this.scale}px`,
       padding: `${element.padding}px`,
       display: 'flex',
@@ -1093,19 +935,16 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   getImageStyle(element: UIElement): any {
-    const [r, g, b] = element?.imageColor ?? [1, 1, 1];
     return {
-      color: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.imageAlpha})`,
+      color: this.colorToRgba(element?.imageColor ?? [1, 1, 1], element.imageAlpha ?? 1),
       padding: `${element.padding}px`,
     };
   }
 
   getButtonStyle(element: UIElement): any {
-    const [r, g, b] = element?.buttonColorBase ?? [1, 1, 1];
-    const [tr, tg, tb] = element?.textColor ?? [1, 1, 1];
     return {
-      backgroundColor: `rgba(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)}, ${element.buttonAlphaBase})`,
-      color: `rgba(${Math.round(tr * 255)}, ${Math.round(tg * 255)}, ${Math.round(tb * 255)}, ${element.textAlpha})`,
+      backgroundColor: this.colorToRgba(element?.buttonColorBase ?? [1, 1, 1], element.buttonAlphaBase ?? 1),
+      color: this.colorToRgba(element?.textColor ?? [1, 1, 1], element.textAlpha ?? 1),
       fontSize: `${(element?.textSize ?? 1) * this.scale}px`,
       padding: `${element.padding}px`,
     };

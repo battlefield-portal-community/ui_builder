@@ -14,6 +14,13 @@ import { UIElement, UIAnchor, UIBgFill, UIImageType } from '../../models/types';
 export class PropertiesEditorComponent {
   selectedElement = computed(() => this.uiBuilder.getSelectedElement());
 
+  // True when more than one element is selected in the canvas. Used to disable
+  // controls that don't make sense for multi-selection (position/size).
+  multipleSelected = computed(() => {
+    const ids = this.uiBuilder.selectedElementIds();
+    return Array.isArray(ids) && ids.length > 1;
+  });
+
   readonly colorPalette: readonly string[] = [
     '#FFFFFF',
     '#D5EBF9',

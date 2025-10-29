@@ -5,104 +5,17 @@
       <span class="brand__subtitle">Battlefield Portal</span>
     </div>
 
-    <div class="background-controls">
-      <div class="background-mode">
-        <span class="background-mode__label">Canvas background:</span>
-        <label class="mode-option">
-          <input
-            type="radio"
-            name="canvas-background-mode"
-            [checked]="backgroundMode() === 'black'"
-            (change)="setBackgroundMode('black')"
-          />
-          <span class="mode-pill mode-pill--black">Black</span>
-        </label>
-        <label class="mode-option">
-          <input
-            type="radio"
-            name="canvas-background-mode"
-            [checked]="backgroundMode() === 'white'"
-            (change)="setBackgroundMode('white')"
-          />
-          <span class="mode-pill mode-pill--white">White</span>
-        </label>
-        <label class="mode-option">
-          <input
-            type="radio"
-            name="canvas-background-mode"
-            [checked]="backgroundMode() === 'image'"
-            (change)="setBackgroundMode('image')"
-          />
-          <span class="mode-pill mode-pill--image">Image</span>
-        </label>
-
-        @if (backgroundMode() === 'image') {
-          <div class="background-image-controls">
-            <label class="background-upload">
-              <input
-                class="background-upload__input"
-                type="file"
-                accept="image/*"
-                multiple
-                (change)="onBackgroundImageUpload($event)"
-              />
-              <span class="background-upload__icon">⬆️</span>
-              <span class="background-upload__text">Upload</span>
-            </label>
-
-            <div class="background-carousel">
-              <button
-                type="button"
-                class="background-tile"
-                [class.selected]="isBackgroundImageSelected(defaultBackgroundImage.id)"
-                (click)="setBackgroundImage(defaultBackgroundImage.id)"
-                [title]="defaultBackgroundImage.fileName"
-              >
-                <span class="background-tile__badge">Default</span>
-                <span
-                  class="background-tile__preview"
-                  [style.background-image]="'url(' + defaultBackgroundImage.url + ')'"
-                ></span>
-                <span class="background-tile__label">{{ defaultBackgroundImage.label }}</span>
-              </button>
-
-              @for (image of backgroundImages(); track image.id) {
-                <button
-                  type="button"
-                  class="background-tile"
-                  [class.selected]="isBackgroundImageSelected(image.id)"
-                  (click)="setBackgroundImage(image.id)"
-                  [title]="image.fileName"
-                >
-                  <span
-                    class="background-tile__preview"
-                    [style.background-image]="'url(' + image.url + ')'"
-                  ></span>
-                  <span class="background-tile__label">{{ image.label }}</span>
-                </button>
-              }
-            </div>
-
-            @if (backgroundImages().length === 0) {
-              <div class="background-empty">
-                Uploaded images will appear here.
-              </div>
-            }
-          </div>
-        } @else {
-          <div class="background-solid">
-            <span
-              class="solid-swatch"
-              [class.solid-swatch--black]="backgroundMode() === 'black'"
-              [class.solid-swatch--white]="backgroundMode() === 'white'"
-            ></span>
-            <span class="solid-label">{{ backgroundMode() | titlecase }} background active</span>
-          </div>
-        }
-      </div>
-    </div>
+    <!-- Background selection moved into modal; open it with the button in actions -->
 
     <div class="header-actions">
+      <button
+        type="button"
+        class="action-button"
+        (click)="openSettingsModal()"
+        title="Settings"
+      >
+        ⚙️ Settings
+      </button>
       <button
         type="button"
         class="action-button"
@@ -176,6 +89,113 @@
       </div>
     </div>
   }
+}
+
+@if (settingsModalOpen()) {
+  <div class="export-modal-backdrop" (click)="closeSettingsModal()">
+    <div class="export-modal settings-modal" (click)="$event.stopPropagation()">
+      <div class="export-modal__header">
+        <h4>Settings</h4>
+        <button type="button" class="export-modal__close" (click)="closeSettingsModal()">✖</button>
+      </div>
+      <div class="export-modal__body">
+        <div class="background-mode">
+          <span class="background-mode__label">Canvas background:</span>
+          <label class="mode-option">
+            <input
+              type="radio"
+              name="canvas-background-mode-modal"
+              [checked]="backgroundMode() === 'black'"
+              (change)="setBackgroundMode('black')"
+            />
+            <span class="mode-pill mode-pill--black">Black</span>
+          </label>
+          <label class="mode-option">
+            <input
+              type="radio"
+              name="canvas-background-mode-modal"
+              [checked]="backgroundMode() === 'white'"
+              (change)="setBackgroundMode('white')"
+            />
+            <span class="mode-pill mode-pill--white">White</span>
+          </label>
+          <label class="mode-option">
+            <input
+              type="radio"
+              name="canvas-background-mode-modal"
+              [checked]="backgroundMode() === 'image'"
+              (change)="setBackgroundMode('image')"
+            />
+            <span class="mode-pill mode-pill--image">Image</span>
+          </label>
+
+          @if (backgroundMode() === 'image') {
+            <div class="background-image-controls">
+              <label class="background-upload">
+                <input
+                  class="background-upload__input"
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  (change)="onBackgroundImageUpload($event)"
+                />
+                <span class="background-upload__icon">⬆️</span>
+                <span class="background-upload__text">Upload</span>
+              </label>
+
+              <div class="background-carousel">
+                <button
+                  type="button"
+                  class="background-tile"
+                  [class.selected]="isBackgroundImageSelected(defaultBackgroundImage.id)"
+                  (click)="setBackgroundImage(defaultBackgroundImage.id)"
+                  [title]="defaultBackgroundImage.fileName"
+                >
+                  <span class="background-tile__badge">Default</span>
+                  <span
+                    class="background-tile__preview"
+                    [style.background-image]="'url(' + defaultBackgroundImage.url + ')'"
+                  ></span>
+                  <span class="background-tile__label">{{ defaultBackgroundImage.label }}</span>
+                </button>
+
+                @for (image of backgroundImages(); track image.id) {
+                  <button
+                    type="button"
+                    class="background-tile"
+                    [class.selected]="isBackgroundImageSelected(image.id)"
+                    (click)="setBackgroundImage(image.id)"
+                    [title]="image.fileName"
+                  >
+                    <span
+                      class="background-tile__preview"
+                      [style.background-image]="'url(' + image.url + ')'"
+                    ></span>
+                    <span class="background-tile__label">{{ image.label }}</span>
+                  </button>
+                }
+              </div>
+
+              @if (backgroundImages().length === 0) {
+                <div class="background-empty">
+                  Uploaded images will appear here.
+                </div>
+              }
+            </div>
+          } @else {
+            <div class="background-solid">
+              <span
+                class="solid-swatch"
+                [class.solid-swatch--black]="backgroundMode() === 'black'"
+                [class.solid-swatch--white]="backgroundMode() === 'white'"
+              ></span>
+              <span class="solid-label">{{ backgroundMode() | titlecase }} background active</span>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
 }
 
 @if (importModalOpen()) {

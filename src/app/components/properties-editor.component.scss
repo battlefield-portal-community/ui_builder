@@ -66,6 +66,17 @@
   margin-bottom: 4px;
 }
 
+/* Visual treatment when an input group is disabled due to multi-selection */
+.property-row.disabled-multi label {
+  color: #7a7a7a;
+}
+
+.property-row.disabled-multi input,
+.property-row.disabled-multi select {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .property-row input,
 .property-row select {
   background: #3a3a3a;

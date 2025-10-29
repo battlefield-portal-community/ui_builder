@@ -1012,6 +1012,174 @@ export class UiBuilderService {
     return this.insertCloneAtLocation(clone, location.parentId, location.index + 1);
   }
 
+  /**
+   * Wrap the current selection in a new Container element.
+   * If all selected elements share the same parent, the new container will be placed
+   * under that parent at the earliest selected index. Otherwise the container is
+   * created at root level and the selected elements are moved under it.
+   * Returns the newly created container element or null when nothing changed.
+   */
+  wrapSelectionInContainer(name?: string): UIElement | null {
+    const selectedIds = this._selectedElementIds();
+    if (!selectedIds || !selectedIds.length) {
+      return null;
+    }
+
+    const uniqueIds = Array.from(new Set(selectedIds));
+
+    // Gather original locations before mutating tree
+    const locations = uniqueIds
+      .map(id => ({ id, loc: this.getElementLocation(id) }))
+      .filter(item => item.loc !== null) as Array<{ id: string; loc: { parentId: string | null; index: number; siblingCount: number } }>;
+
+    if (!locations.length) {
+      return null;
+    }
+
+    const parents = new Set(locations.map(l => l.loc.parentId));
+    const sameParent = parents.size === 1;
+    const targetParentId = sameParent ? locations[0].loc.parentId : null;
+
+    // Choose insertion index: earliest index among selected in the target parent (or append at end)
+    const earliestIndex = sameParent
+      ? Math.min(...locations.map(l => l.loc.index))
+      : (this._elements() ? this._elements().length : 0);
+
+    // Compute absolute bounding box of all selected elements using current element bounds
+    const boundsList = uniqueIds
+      .map(id => this.getElementBounds(id))
+      .filter((b): b is UIElementBounds => !!b)
+      .map(b => b.rect);
+
+    if (!boundsList.length) {
+      return null;
+    }
+
+    const minLeft = Math.min(...boundsList.map(r => r.left));
+    const minTop = Math.min(...boundsList.map(r => r.top));
+    const maxRight = Math.max(...boundsList.map(r => r.right));
+    const maxBottom = Math.max(...boundsList.map(r => r.bottom));
+
+    const groupWidth = Math.max(1, maxRight - minLeft);
+    const groupHeight = Math.max(1, maxBottom - minTop);
+
+    // Create container element and force TopLeft anchor for predictable math
+    const container = this.createUIElement('Container', name ?? `Container_${generateRandomSuffix()}`);
+    container.anchor = UIAnchor.TopLeft;
+    container.size = [groupWidth, groupHeight];
+
+    // Parent rect for positioning the container
+    const parentBounds = targetParentId ? this.getElementBounds(targetParentId) : null;
+    const parentLeft = parentBounds ? parentBounds.rect.left : 0;
+    const parentTop = parentBounds ? parentBounds.rect.top : 0;
+
+    // Position container so its top-left matches the group's min left/top
+    container.position = [minLeft - parentLeft, minTop - parentTop];
+
+    // Prepare moved children (update parent and recompute local positions relative to container)
+    const selectedSet = new Set(uniqueIds);
+    const collected: UIElement[] = [];
+
+    // Clone current bounds map for quick lookup
+    const boundsMap: Record<string, UIRect> = {};
+    for (const id of uniqueIds) {
+      const b = this.getElementBounds(id);
+      if (b) boundsMap[id] = b.rect;
+    }
+
+    // Build collected nodes from snapshots (we will mutate their parent and position)
+    for (const id of uniqueIds) {
+      const node = this.findElementById(id);
+      if (!node) continue;
+      // shallow clone so we don't accidentally keep references to original arrays
+      const clone: UIElement = {
+        ...node,
+        children: node.children ? node.children.map(c => this.cloneElementSnapshot(c)) : [],
+        position: [...node.position],
+        size: [...node.size],
+      } as UIElement;
+
+      // Set new parent to container
+      clone.parent = container.id;
+
+      // Calculate child's absolute top-left from bounds
+      const childRect = boundsMap[id];
+      if (childRect) {
+        const childAbsLeft = childRect.left;
+        const childAbsTop = childRect.top;
+
+        // Compute child's anchor start & offset relative to container size
+        const childAnchorStart = this.getAnchorStartCoordinates(clone.anchor, container.size[0], container.size[1]);
+        const childAnchorOffset = this.getAnchorOffset(clone.anchor, clone.size);
+
+        // New local position so absolute position remains constant
+        const localX = childAbsLeft - minLeft - childAnchorStart.x - childAnchorOffset.x;
+        const localY = childAbsTop - minTop - childAnchorStart.y - childAnchorOffset.y;
+
+        clone.position = [this.ensureNumber(localX, 0), this.ensureNumber(localY, 0)];
+      }
+
+      collected.push(clone);
+    }
+
+    // Now remove selected nodes from tree and insert container with collected children
+    const removeAndCollect = (nodes: UIElement[]): UIElement[] => {
+      const result: UIElement[] = [];
+      for (const node of nodes) {
+        if (selectedSet.has(node.id)) {
+          continue; // removed - we will insert the prepared clone instead
+        }
+
+        const children = node.children ? removeAndCollect(node.children) : [];
+        if (children !== node.children) {
+          result.push({ ...node, children });
+        } else {
+          result.push(node);
+        }
+      }
+      return result;
+    };
+
+    this._elements.update(elements => {
+      const withoutSelected = removeAndCollect(elements);
+
+      // Attach collected nodes to container
+      container.children = collected;
+
+      // Insert container at correct location
+      if (!targetParentId) {
+        const insertIndex = this.clampIndex(earliestIndex, withoutSelected.length);
+        const copy = [...withoutSelected];
+        copy.splice(insertIndex, 0, container);
+        return copy;
+      }
+
+      const insertIntoParent = (nodes: UIElement[]): UIElement[] => {
+        return nodes.map(node => {
+          if (node.id === targetParentId) {
+            const children = node.children ? [...node.children] : [];
+            const insertIndex = this.clampIndex(earliestIndex, children.length);
+            children.splice(insertIndex, 0, container);
+            return { ...node, children };
+          }
+
+          if (node.children && node.children.length) {
+            return { ...node, children: insertIntoParent(node.children) };
+          }
+
+          return node;
+        });
+      };
+
+      return insertIntoParent(withoutSelected);
+    });
+
+    // Select the new container
+    this.selectElement(container.id);
+
+    return container;
+  }
+
   getElementLocation(elementId: string): { parentId: string | null; index: number; siblingCount: number } | null {
     const search = (elements: UIElement[], parentId: string | null): { parentId: string | null; index: number; siblingCount: number } | null => {
       const index = elements.findIndex(element => element.id === elementId);

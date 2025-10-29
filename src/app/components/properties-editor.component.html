@@ -53,7 +53,13 @@
           </div>
         }
         
-        <div class="property-row">
+        @if (multipleSelected()) {
+          <div class="property-hint">
+            Multiple elements selected — position and size editing is disabled.
+          </div>
+        }
+
+        <div class="property-row" [class.disabled-multi]="multipleSelected()">
           <label>Position:</label>
           <div class="vector-input">
             <input 
@@ -61,19 +67,21 @@
               [value]="element.position[0]"
               (input)="updateVectorProperty('position', 0, $event)"
               placeholder="X"
-              [disabled]="element.locked"
+              [disabled]="element.locked || multipleSelected()"
+              [title]="multipleSelected() ? 'Multiple elements selected — edit position from the canvas instead' : ''"
             />
             <input 
               type="number" 
               [value]="element.position[1]"
               (input)="updateVectorProperty('position', 1, $event)"
               placeholder="Y"
-              [disabled]="element.locked"
+              [disabled]="element.locked || multipleSelected()"
+              [title]="multipleSelected() ? 'Multiple elements selected — edit position from the canvas instead' : ''"
             />
           </div>
         </div>
         
-        <div class="property-row">
+        <div class="property-row" [class.disabled-multi]="multipleSelected()">
           <label>Size:</label>
           <div class="vector-input">
             <input 
@@ -82,7 +90,8 @@
               (input)="updateVectorProperty('size', 0, $event)"
               placeholder="Width"
               min="1"
-              [disabled]="element.locked"
+              [disabled]="element.locked || multipleSelected()"
+              [title]="multipleSelected() ? 'Multiple elements selected — edit size from the canvas instead' : ''"
             />
             <input 
               type="number" 
@@ -90,7 +99,8 @@
               (input)="updateVectorProperty('size', 1, $event)"
               placeholder="Height"
               min="1"
-              [disabled]="element.locked"
+              [disabled]="element.locked || multipleSelected()"
+              [title]="multipleSelected() ? 'Multiple elements selected — edit size from the canvas instead' : ''"
             />
           </div>
         </div>
