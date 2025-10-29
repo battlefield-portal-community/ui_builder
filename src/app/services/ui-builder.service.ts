@@ -129,7 +129,7 @@ export interface UIAdvancedExportClass {
 })
 export class UiBuilderService {
   private _elements = signal<UIElement[]>([]);
-  private _selectedElementId = signal<string | null>(null);
+  private _selectedElementIds = signal<string[]>([]);
   private _nextId = 1;
   private _autoSaveIntervalId: number | null = null;
   private _lastSavedSignature: string | null = null;
@@ -141,16 +141,22 @@ export class UiBuilderService {
   private _snapToElements = signal<boolean>(true);
   private _showContainerLabels = signal<boolean>(true);
   private _advancedPresets = signal<UIAdvancedPresetDefinition[]>([]);
-  private _copiedElement: {
-    snapshot: UIElement;
-    parentId: string | null;
-    index: number;
-    sourceId: string;
+  private _copiedElements: {
+    items: Array<{
+      snapshot: UIElement;
+      parentId: string | null;
+      index: number;
+      sourceId: string;
+    }>;
   } | null = null;
 
   // Public readonly signals
   readonly elements = this._elements.asReadonly();
-  readonly selectedElementId = this._selectedElementId.asReadonly();
+  readonly selectedElementIds = this._selectedElementIds.asReadonly();
+  readonly selectedElementId = computed(() => {
+    const ids = this._selectedElementIds();
+    return ids.length ? ids[ids.length - 1] : null;
+  });
   readonly canvasBackgroundMode = this._canvasBackgroundMode.asReadonly();
   readonly canvasBackgroundImage = this._canvasBackgroundImage.asReadonly();
   readonly canvasBackgroundImages = this._canvasBackgroundImages.asReadonly();
@@ -276,7 +282,7 @@ export class UiBuilderService {
     }
 
     this._elements.update(elements => [...elements, instance]);
-    this._selectedElementId.set(instance.id);
+    this.selectElement(instance.id);
     return instance;
   }
 
@@ -652,11 +658,11 @@ export class UiBuilderService {
 
   // Add element to root or selected element
   addElement(type: UIElementTypes, name?: string): void {
-    const selectedId = this._selectedElementId();
+    const selectedId = this.selectedElementId();
     const parent = selectedId ? this.findElementById(selectedId) : null;
 
     if (selectedId && !parent) {
-      this._selectedElementId.set(null);
+      this.clearSelection();
     }
 
     if (parent && !this.canElementAcceptChildren(parent)) {
@@ -671,7 +677,7 @@ export class UiBuilderService {
       this._elements.update(elements => [...elements, newElement]);
     }
 
-    this._selectedElementId.set(newElement.id);
+    this.selectElement(newElement.id);
   }
 
   // Add element to specific parent
@@ -742,13 +748,79 @@ export class UiBuilderService {
   }
 
   // Select element
-  selectElement(elementId: string | null): void {
-    this._selectedElementId.set(elementId);
+  selectElement(elementId: string | null, options?: { append?: boolean; toggle?: boolean }): void {
+    const normalizedId = typeof elementId === 'string' ? elementId : null;
+
+    if (!normalizedId) {
+      this.clearSelection();
+      return;
+    }
+
+    const current = this._selectedElementIds();
+    const alreadySelected = current.includes(normalizedId);
+
+    if (options?.toggle) {
+      const next = alreadySelected ? current.filter(id => id !== normalizedId) : [...current, normalizedId];
+      if (!this.areSelectionsEqual(current, next)) {
+        this._selectedElementIds.set(next);
+      }
+      return;
+    }
+
+    if (options?.append) {
+      if (alreadySelected) {
+        return;
+      }
+      this._selectedElementIds.set([...current, normalizedId]);
+      return;
+    }
+
+    if (alreadySelected && current.length === 1) {
+      return;
+    }
+
+    this._selectedElementIds.set([normalizedId]);
+  }
+
+  toggleElementSelection(elementId: string): void {
+    this.selectElement(elementId, { toggle: true });
+  }
+
+  addElementToSelection(elementId: string): void {
+    this.selectElement(elementId, { append: true });
+  }
+
+  clearSelection(): void {
+    if (this._selectedElementIds().length) {
+      this._selectedElementIds.set([]);
+    }
+  }
+
+  isElementSelected(elementId: string | null | undefined): boolean {
+    if (!elementId) {
+      return false;
+    }
+    return this._selectedElementIds().includes(elementId);
+  }
+
+  private areSelectionsEqual(a: readonly string[], b: readonly string[]): boolean {
+    if (a === b) {
+      return true;
+    }
+    if (a.length !== b.length) {
+      return false;
+    }
+    for (let index = 0; index < a.length; index++) {
+      if (a[index] !== b[index]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   // Get selected element
   getSelectedElement(): UIElement | null {
-    const selectedId = this._selectedElementId();
+    const selectedId = this.selectedElementId();
     if (!selectedId) return null;
     return this.findElementById(selectedId);
   }
@@ -774,9 +846,14 @@ export class UiBuilderService {
       return this.removeElementRecursive(elements, elementId);
     });
 
-    // Clear selection if removed element was selected
-    if (this._selectedElementId() === elementId) {
-      this._selectedElementId.set(null);
+    // Remove deleted element from selection
+    const currentSelection = this._selectedElementIds();
+    if (!currentSelection.length) {
+      return;
+    }
+    const nextSelection = currentSelection.filter(id => id !== elementId);
+    if (!this.areSelectionsEqual(currentSelection, nextSelection)) {
+      this._selectedElementIds.set(nextSelection);
     }
   }
 
@@ -788,59 +865,135 @@ export class UiBuilderService {
     });
   }
 
+  copySelection(): boolean {
+    const selectedIds = this._selectedElementIds();
+    if (!selectedIds.length) {
+      this._copiedElements = null;
+      return false;
+    }
+    return this.copyElements(selectedIds);
+  }
+
   copyElement(elementId: string): boolean {
-    const original = this.findElementById(elementId);
-    if (!original) {
-      this._copiedElement = null;
+    if (!elementId) {
+      this._copiedElements = null;
+      return false;
+    }
+    return this.copyElements([elementId]);
+  }
+
+  private copyElements(elementIds: readonly string[]): boolean {
+    if (!elementIds?.length) {
+      this._copiedElements = null;
       return false;
     }
 
-    const location = this.getElementLocation(elementId);
-    if (!location) {
-      this._copiedElement = null;
+    const seen = new Set<string>();
+    const uniqueIds: string[] = [];
+    for (const id of elementIds) {
+      const normalized = typeof id === 'string' ? id.trim() : '';
+      if (!normalized || seen.has(normalized)) {
+        continue;
+      }
+      seen.add(normalized);
+      uniqueIds.push(normalized);
+    }
+
+    if (!uniqueIds.length) {
+      this._copiedElements = null;
       return false;
     }
 
-    this._copiedElement = {
-      snapshot: this.cloneElementSnapshot(original),
-      parentId: location.parentId,
-      index: location.index,
-      sourceId: elementId,
-    };
+    const items: Array<{
+      snapshot: UIElement;
+      parentId: string | null;
+      index: number;
+      sourceId: string;
+    }> = [];
 
+    for (const id of uniqueIds) {
+      const element = this.findElementById(id);
+      if (!element) {
+        continue;
+      }
+      const location = this.getElementLocation(id);
+      if (!location) {
+        continue;
+      }
+
+      items.push({
+        snapshot: this.cloneElementSnapshot(element),
+        parentId: location.parentId,
+        index: location.index,
+        sourceId: id,
+      });
+    }
+
+    if (!items.length) {
+      this._copiedElements = null;
+      return false;
+    }
+
+    this._copiedElements = { items };
     return true;
   }
 
-  pasteCopiedElement(): UIElement | null {
-    if (!this._copiedElement) {
+  pasteCopiedElement(): UIElement[] | null {
+    const buffer = this._copiedElements;
+    if (!buffer || !buffer.items.length) {
       return null;
     }
 
     const existingNames = this.collectElementNames();
-    const snapshot = this._copiedElement.snapshot;
+    const insertedElements: UIElement[] = [];
+    const nextItems: typeof buffer.items = [];
+    const insertedIds: string[] = [];
 
-    const sourceLocation = this.getElementLocation(this._copiedElement.sourceId);
-    let parentId = sourceLocation?.parentId ?? this._copiedElement.parentId;
-    let insertIndex = sourceLocation?.index ?? this._copiedElement.index;
+    for (const item of buffer.items) {
+      const { snapshot, parentId, index, sourceId } = item;
+      const sourceLocation = this.getElementLocation(sourceId);
 
-    if (parentId && !this.findElementById(parentId)) {
-      parentId = null;
-    }
+      let effectiveParentId = sourceLocation?.parentId ?? parentId ?? null;
+      if (effectiveParentId && !this.findElementById(effectiveParentId)) {
+        effectiveParentId = null;
+      }
 
-    const clone = this.cloneElementWithNewIds(snapshot, existingNames);
-    const inserted = this.insertCloneAtLocation(clone, parentId, insertIndex + 1);
+      const insertIndex = (sourceLocation?.index ?? index) + 1;
 
-    if (inserted) {
-      const location = this.getElementLocation(inserted.id);
-      this._copiedElement = {
+      const clone = this.cloneElementWithNewIds(snapshot, existingNames);
+      const inserted = this.insertCloneAtLocation(clone, effectiveParentId, insertIndex, { select: false });
+      if (!inserted) {
+        continue;
+      }
+
+      insertedElements.push(inserted);
+      insertedIds.push(inserted.id);
+
+      const insertedLocation = this.getElementLocation(inserted.id);
+      nextItems.push({
         snapshot: this.cloneElementSnapshot(snapshot),
-        parentId: location?.parentId ?? parentId,
-        index: location?.index ?? insertIndex + 1,
+        parentId: insertedLocation?.parentId ?? effectiveParentId,
+        index: insertedLocation?.index ?? insertIndex,
         sourceId: inserted.id,
-      };
+      });
     }
 
-    return inserted;
+    if (!insertedElements.length) {
+      return null;
+    }
+
+    this._copiedElements = { items: nextItems };
+
+    this.clearSelection();
+    insertedIds.forEach((id, idx) => {
+      if (idx === 0) {
+        this.selectElement(id);
+      } else {
+        this.addElementToSelection(id);
+      }
+    });
+
+    return insertedElements;
   }
 
   duplicateElement(elementId: string): UIElement | null {
@@ -1131,7 +1284,12 @@ export class UiBuilderService {
     return this.decorateAdvancedPresetInstance(withMetadata, preset);
   }
 
-  private insertCloneAtLocation(clone: UIElement, parentId: string | null, insertIndex: number): UIElement | null {
+  private insertCloneAtLocation(
+    clone: UIElement,
+    parentId: string | null,
+    insertIndex: number,
+    options?: { select?: boolean }
+  ): UIElement | null {
     const parentExists = parentId ? this.findElementById(parentId) : null;
 
     this._elements.update(elements => {
@@ -1154,7 +1312,9 @@ export class UiBuilderService {
       });
     });
 
-    this._selectedElementId.set(clone.id);
+    if (options?.select !== false) {
+      this.selectElement(clone.id);
+    }
     return clone;
   }
 
@@ -1220,7 +1380,7 @@ export class UiBuilderService {
 
       if (mode === 'replace') {
         this.clear();
-        this._copiedElement = null;
+        this._copiedElements = null;
       }
 
       this._lastSavedSignature = null;
@@ -1237,7 +1397,7 @@ export class UiBuilderService {
         this._elements.set(restored);
       }
 
-      this._selectedElementId.set(null);
+      this.clearSelection();
 
       return { success: true, importedCount: restored.length };
     } catch (error) {
@@ -1249,7 +1409,7 @@ export class UiBuilderService {
   // Clear all elements
   clear(): void {
     this._elements.set([]);
-    this._selectedElementId.set(null);
+    this.clearSelection();
     this._nextId = 1;
   }
 
@@ -1329,7 +1489,7 @@ export class UiBuilderService {
 
       this._elements.set(restoredElements);
       this.refreshNextId(restoredElements);
-      this._selectedElementId.set(null);
+      this.clearSelection();
 
       if (payload.backgroundMode) {
         this.setCanvasBackgroundMode(payload.backgroundMode);

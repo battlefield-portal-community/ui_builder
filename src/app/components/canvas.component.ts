@@ -46,6 +46,8 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
+  selectedElementIds = computed(() => this.uiBuilder.selectedElementIds());
+  selectedElementIdSet = computed(() => new Set(this.selectedElementIds()));
   showContainerLabels = computed(() => this.uiBuilder.showContainerLabels());
   canvasStyle = computed(() => {
     const mode = this.uiBuilder.canvasBackgroundMode();
@@ -75,6 +77,9 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   dragElement: UIElement | null = null;
   private dragOffset = { x: 0, y: 0 };
   private dragStartPosition = { x: 0, y: 0 };
+  private dragPointerStart = { x: 0, y: 0 };
+  private dragElementStartAbsolute = { x: 0, y: 0 };
+  private multiDragElements: Array<{ id: string; element: UIElement; absoluteX: number; absoluteY: number }> = [];
 
   // Resize state
   isResizing = false;
@@ -229,17 +234,35 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
   onElementClick(event: MouseEvent, elementId: string) {
     event.stopPropagation();
-    if (!this.isDragging) {
-      this.uiBuilder.selectElement(elementId);
+    if (this.isDragging) {
+      return;
     }
+
+    if (event.ctrlKey || event.metaKey) {
+      return;
+    }
+
+    this.uiBuilder.selectElement(elementId);
   }
 
   onElementMouseDown(event: MouseEvent, elementId: string) {
     event.preventDefault();
     event.stopPropagation();
-    
-    // Select the element if not already selected
-    if (this.selectedElementId() !== elementId) {
+
+    const isToggleSelection = event.ctrlKey || event.metaKey;
+
+    if (isToggleSelection) {
+      this.uiBuilder.toggleElementSelection(elementId);
+      return;
+    }
+
+    const selectionHasElement = this.selectedElementIdSet().has(elementId);
+    const selectedIds = this.selectedElementIds();
+    const hasMultipleSelection = selectedIds.length > 1;
+
+    if (!selectionHasElement) {
+      this.uiBuilder.selectElement(elementId);
+    } else if (!hasMultipleSelection && this.selectedElementId() !== elementId) {
       this.uiBuilder.selectElement(elementId);
     }
 
@@ -259,9 +282,51 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     // Calculate mouse position relative to canvas in game coordinates
     const mouseGameX = (event.clientX - canvasRect.left) / this.scale;
     const mouseGameY = (event.clientY - canvasRect.top) / this.scale;
+
+    this.dragPointerStart.x = mouseGameX;
+    this.dragPointerStart.y = mouseGameY;
     
     // Get element's current game position (anchor start + position offset)
     const elementGamePosition = this.getElementGamePosition(element);
+
+    const selectionIds = this.selectedElementIds();
+    const idsToInclude = selectionIds.length ? selectionIds : [elementId];
+    const seenIds = new Set<string>();
+
+    this.multiDragElements = [];
+
+    for (const id of idsToInclude) {
+      if (!id || seenIds.has(id)) {
+        continue;
+      }
+      seenIds.add(id);
+      const selectedElement = this.uiBuilder.findElementById(id);
+      if (!selectedElement || selectedElement.locked) {
+        continue;
+      }
+
+      const absolutePosition = this.getAbsoluteGamePosition(selectedElement);
+      this.multiDragElements.push({
+        id,
+        element: selectedElement,
+        absoluteX: absolutePosition.x,
+        absoluteY: absolutePosition.y,
+      });
+    }
+
+    let dragEntry = this.multiDragElements.find(entry => entry.id === elementId);
+    if (!dragEntry) {
+      dragEntry = {
+        id: element.id,
+        element,
+        absoluteX: elementGamePosition.x,
+        absoluteY: elementGamePosition.y,
+      };
+      this.multiDragElements.push(dragEntry);
+    }
+
+    this.dragElementStartAbsolute.x = dragEntry.absoluteX;
+    this.dragElementStartAbsolute.y = dragEntry.absoluteY;
     
     // Calculate offset from mouse to element's position in game coordinates
     this.dragOffset.x = mouseGameX - elementGamePosition.x;
@@ -332,25 +397,48 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
     // Handle dragging
     if (this.isDragging && this.dragElement && !this.dragElement.locked) {
-      // Calculate new element position by subtracting drag offset
+      const dragEntry = this.multiDragElements.find(entry => entry.id === this.dragElement?.id);
+      if (!dragEntry) {
+        return;
+      }
+
+      const movingIds = this.multiDragElements.length > 1
+        ? new Set(this.multiDragElements.map(entry => entry.id))
+        : undefined;
+
       const newElementGameX = mouseGameX - this.dragOffset.x;
       const newElementGameY = mouseGameY - this.dragOffset.y;
-      const snappedPosition = this.applySnapping(this.dragElement, newElementGameX, newElementGameY);
-      
-      // Convert from absolute game position to position relative to anchor
-      const newPosition = this.calculateAnchorAdjustedPosition(
-        snappedPosition.x,
-        snappedPosition.y,
-        this.dragElement
-      );
-      
-      // Update element position
-      this.uiBuilder.updateElement(this.dragElement.id, {
-        position: [
-          this.roundValue(newPosition.x, 2),
-          this.roundValue(newPosition.y, 2)
-        ]
-      });
+      const snappedPosition = this.applySnapping(this.dragElement, newElementGameX, newElementGameY, movingIds);
+
+      const deltaX = snappedPosition.x - this.dragElementStartAbsolute.x;
+      const deltaY = snappedPosition.y - this.dragElementStartAbsolute.y;
+
+      for (const entry of this.multiDragElements) {
+        const targetElement = entry.id === this.dragElement.id ? this.dragElement : entry.element;
+        if (!targetElement || targetElement.locked) {
+          continue;
+        }
+
+        const targetAbsoluteX = entry.id === this.dragElement.id
+          ? snappedPosition.x
+          : entry.absoluteX + deltaX;
+        const targetAbsoluteY = entry.id === this.dragElement.id
+          ? snappedPosition.y
+          : entry.absoluteY + deltaY;
+
+        const newPosition = this.calculateAnchorAdjustedPosition(
+          targetAbsoluteX,
+          targetAbsoluteY,
+          targetElement
+        );
+
+        this.uiBuilder.updateElement(targetElement.id, {
+          position: [
+            this.roundValue(newPosition.x, 2),
+            this.roundValue(newPosition.y, 2)
+          ]
+        });
+      }
     }
 
     // Handle resizing
@@ -394,6 +482,7 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     if (this.isDragging) {
       this.isDragging = false;
       this.dragElement = null;
+      this.multiDragElements = [];
     }
     
     if (this.isResizing) {
@@ -413,16 +502,15 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     const key = event.key.toLowerCase();
 
     if ((event.ctrlKey || event.metaKey) && key === 'c') {
-      const selectedId = this.selectedElementId();
-      if (selectedId) {
-        this.uiBuilder.copyElement(selectedId);
+      if (this.uiBuilder.copySelection()) {
+        event.preventDefault();
       }
       return;
     }
 
     if ((event.ctrlKey || event.metaKey) && key === 'v') {
       const pasted = this.uiBuilder.pasteCopiedElement();
-      if (pasted) {
+      if (pasted && pasted.length) {
         event.preventDefault();
       }
       return;
@@ -455,26 +543,54 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
   }
 
   private deleteSelectedElement() {
-    const selectedId = this.selectedElementId();
-    if (!selectedId) return;
+    const selectedIds = this.selectedElementIds();
+    if (!selectedIds.length) {
+      return;
+    }
 
-    const element = this.uiBuilder.findElementById(selectedId);
-    if (!element) return;
+    if (selectedIds.length === 1) {
+      const selectedId = selectedIds[0];
+      const element = this.uiBuilder.findElementById(selectedId);
+      if (!element) {
+        return;
+      }
 
-    const hasChildren = element.children && element.children.length > 0;
-    
-    // Show confirmation dialog if element has children
-    if (hasChildren) {
-      const childCount = element.children!.length;
-      const message = `Delete "${element.name}"?\n\nThis element contains ${childCount} child element${childCount > 1 ? 's' : ''} that will also be deleted.`;
-      
-      if (confirm(message)) {
+      const hasChildren = element.children && element.children.length > 0;
+
+      if (hasChildren) {
+        const childCount = element.children!.length;
+        const message = `Delete "${element.name}"?\n\nThis element contains ${childCount} child element${childCount > 1 ? 's' : ''} that will also be deleted.`;
+
+        if (confirm(message)) {
+          this.uiBuilder.removeElement(selectedId);
+        }
+      } else {
         this.uiBuilder.removeElement(selectedId);
       }
-    } else {
-      // No children, delete immediately
-      this.uiBuilder.removeElement(selectedId);
+
+      return;
     }
+
+    const elements = selectedIds
+      .map(id => this.uiBuilder.findElementById(id))
+      .filter((item): item is UIElement => !!item);
+
+    if (!elements.length) {
+      return;
+    }
+
+    const withChildren = elements.filter(element => element.children && element.children.length > 0);
+    const messageLines = [`Delete ${elements.length} selected elements?`];
+    if (withChildren.length) {
+      messageLines.push(`\n${withChildren.length} selected element${withChildren.length > 1 ? 's' : ''} contain child elements that will also be removed.`);
+    }
+
+    if (!confirm(messageLines.join(''))) {
+      return;
+    }
+
+    const idsToRemove = Array.from(new Set(selectedIds));
+    idsToRemove.forEach(id => this.uiBuilder.removeElement(id));
   }
 
   private getElementGamePosition(element: UIElement): { x: number, y: number } {
@@ -708,12 +824,23 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     };
   }
 
-  private getSiblingRectsForSnapping(elementId: string): UIRect[] {
+  private getSiblingRectsForSnapping(elementId: string, excludeIds?: Set<string>): UIRect[] {
     const location = this.uiBuilder.getElementLocation(elementId);
     const parentId = location?.parentId ?? null;
     const allBounds = this.uiBuilder.elementBounds();
     const siblingRects = allBounds
-      .filter(bounds => bounds.parentId === parentId && bounds.id !== elementId)
+      .filter(bounds => {
+        if (bounds.parentId !== parentId) {
+          return false;
+        }
+        if (bounds.id === elementId) {
+          return false;
+        }
+        if (excludeIds?.has(bounds.id)) {
+          return false;
+        }
+        return true;
+      })
       .map(bounds => bounds.rect);
 
     if (parentId) {
@@ -739,13 +866,18 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
     this.snapGuides.set({ vertical: [], horizontal: [] });
   }
 
-  private applySnapping(element: UIElement, proposedX: number, proposedY: number): { x: number; y: number } {
+  private applySnapping(
+    element: UIElement,
+    proposedX: number,
+    proposedY: number,
+    excludeIds?: Set<string>
+  ): { x: number; y: number } {
     if (!this.uiBuilder.snapToElements()) {
       this.clearSnapGuides();
       return { x: proposedX, y: proposedY };
     }
 
-    const candidateRects = this.getSiblingRectsForSnapping(element.id);
+    const candidateRects = this.getSiblingRectsForSnapping(element.id, excludeIds);
 
     if (!candidateRects.length) {
       this.clearSnapGuides();

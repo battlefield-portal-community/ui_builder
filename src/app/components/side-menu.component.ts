@@ -15,6 +15,8 @@ export class SideMenuComponent {
 
   elements = computed(() => this.uiBuilder.elements());
   selectedElementId = computed(() => this.uiBuilder.selectedElementId());
+  selectedElementIds = computed(() => this.uiBuilder.selectedElementIds());
+  selectedElementIdSet = computed(() => new Set(this.selectedElementIds()));
   selectedElement = computed(() => this.uiBuilder.getSelectedElement());
   snapToElements = computed(() => this.uiBuilder.snapToElements());
   showContainerLabels = computed(() => this.uiBuilder.showContainerLabels());

@@ -102,7 +102,7 @@
         <div class="empty-state">No elements yet</div>
       } @else {
         @for (item of getFlattenedElements(); track item.element.id) {
-          <div class="tree-element" [class.selected]="item.element.id === selectedElementId()" [class.locked]="item.element.locked">
+          <div class="tree-element" [class.selected]="selectedElementIdSet().has(item.element.id)" [class.locked]="item.element.locked">
             <div 
               class="element-item"
               (click)="selectElement(item.element.id)"
