@@ -1,4 +1,4 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, HostBinding, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UiBuilderService } from '../services/ui-builder.service';
 import { UIElementTypes, UIElement } from '../../models/types';
@@ -11,6 +11,11 @@ import { UIElementTypes, UIElement } from '../../models/types';
   styleUrl: './side-menu.component.scss'
 })
 export class SideMenuComponent {
+  @HostBinding('class.collapsed')
+  get collapsedClass(): boolean {
+    return this.isCollapsed();
+  }
+
   elementTypes: UIElementTypes[] = ['Container', 'Text', 'Image', 'Button'];
 
   elements = computed(() => this.uiBuilder.elements());
@@ -21,6 +26,9 @@ export class SideMenuComponent {
   advancedPresets = computed(() => this.uiBuilder.advancedPresets());
   hasAdvancedPresets = computed(() => this.advancedPresets().length > 0);
   showAdvancedPresets = signal(false);
+  isCollapsed = computed(() => this.uiBuilder.sideMenuCollapsed());
+  collapseToggleLabel = computed(() => this.isCollapsed() ? 'Expand library panel' : 'Collapse library panel');
+  headerTitle = computed(() => this.isCollapsed() ? 'UI' : 'UI Builder');
   canAddChildElements = computed(() => {
     const selected = this.selectedElement();
     if (!selected) {
@@ -30,6 +38,10 @@ export class SideMenuComponent {
   });
 
   constructor(private uiBuilder: UiBuilderService) {
+  }
+
+  toggleCollapse() {
+    this.uiBuilder.toggleSideMenuCollapsed();
   }
 
   addElement(type: UIElementTypes) {

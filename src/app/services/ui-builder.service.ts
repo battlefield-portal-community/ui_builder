@@ -140,6 +140,8 @@ export class UiBuilderService {
   private _uploadedObjectUrls = new Set<string>();
   private _snapToElements = signal<boolean>(true);
   private _showContainerLabels = signal<boolean>(false);
+  private _sideMenuCollapsed = signal<boolean>(false);
+  private _propertiesPanelCollapsed = signal<boolean>(false);
   private _advancedPresets = signal<UIAdvancedPresetDefinition[]>([]);
   private _copiedElements: {
     items: Array<{
@@ -164,6 +166,8 @@ export class UiBuilderService {
   readonly defaultCanvasBackgroundImage = DEFAULT_CANVAS_BACKGROUND_IMAGE;
   readonly snapToElements = this._snapToElements.asReadonly();
   readonly showContainerLabels = this._showContainerLabels.asReadonly();
+  readonly sideMenuCollapsed = this._sideMenuCollapsed.asReadonly();
+  readonly propertiesPanelCollapsed = this._propertiesPanelCollapsed.asReadonly();
   readonly advancedPresets = this._advancedPresets.asReadonly();
   readonly canvasBackgroundImageUrl = computed(() => {
     const imageId = this._canvasBackgroundImage();
@@ -200,6 +204,22 @@ export class UiBuilderService {
 
   toggleShowContainerLabels(): void {
     this._showContainerLabels.update(value => !value);
+  }
+
+  setSideMenuCollapsed(collapsed: boolean): void {
+    this._sideMenuCollapsed.set(!!collapsed);
+  }
+
+  toggleSideMenuCollapsed(): void {
+    this._sideMenuCollapsed.update(value => !value);
+  }
+
+  setPropertiesPanelCollapsed(collapsed: boolean): void {
+    this._propertiesPanelCollapsed.set(!!collapsed);
+  }
+
+  togglePropertiesPanelCollapsed(): void {
+    this._propertiesPanelCollapsed.update(value => !value);
   }
 
   registerAdvancedPreset(preset: UIAdvancedPresetDefinition): void {

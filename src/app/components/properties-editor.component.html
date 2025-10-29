@@ -1,10 +1,21 @@
-<div class="properties-editor">
+<div class="properties-editor" [class.is-collapsed]="isCollapsed()">
   <div class="editor-header">
-    <h3>Properties</h3>
+    <h3>{{ isCollapsed() ? 'Props' : 'Properties' }}</h3>
+    <button
+      type="button"
+      class="collapse-button"
+      (click)="toggleCollapse()"
+      [attr.aria-label]="collapseToggleLabel()"
+      [title]="collapseToggleLabel()"
+      [attr.aria-expanded]="!isCollapsed()"
+    >
+      {{ isCollapsed() ? '<' : '>' }}
+    </button>
   </div>
 
-  @if (selectedElement(); as element) {
-    <div class="properties-content">
+  @if (!isCollapsed()) {
+    @if (selectedElement(); as element) {
+      <div class="properties-content">
       <!-- Basic Properties -->
       <div class="property-group">
         <h4>Basic</h4>
@@ -536,10 +547,11 @@
           <!-- Additional button states could be added here -->
         </div>
       }
-    </div>
-  } @else {
-    <div class="no-selection">
-      <p>Select an element to edit its properties</p>
-    </div>
+      </div>
+    } @else {
+      <div class="no-selection">
+        <p>Select an element to edit its properties</p>
+      </div>
+    }
   }
 </div>

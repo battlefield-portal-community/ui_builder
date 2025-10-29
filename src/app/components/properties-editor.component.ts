@@ -1,4 +1,4 @@
-import { Component, computed } from '@angular/core';
+import { Component, HostBinding, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { UiBuilderService } from '../services/ui-builder.service';
@@ -12,6 +12,11 @@ import { UIElement, UIAnchor, UIBgFill, UIImageType } from '../../models/types';
   styleUrl: './properties-editor.component.scss'
 })
 export class PropertiesEditorComponent {
+  @HostBinding('class.collapsed')
+  get collapsedClass(): boolean {
+    return this.isCollapsed();
+  }
+
   selectedElement = computed(() => this.uiBuilder.getSelectedElement());
 
   // True when more than one element is selected in the canvas. Used to disable
@@ -20,6 +25,9 @@ export class PropertiesEditorComponent {
     const ids = this.uiBuilder.selectedElementIds();
     return Array.isArray(ids) && ids.length > 1;
   });
+
+  isCollapsed = computed(() => this.uiBuilder.propertiesPanelCollapsed());
+  collapseToggleLabel = computed(() => this.isCollapsed() ? 'Expand properties panel' : 'Collapse properties panel');
 
   readonly colorPalette: readonly string[] = [
     '#FFFFFF',
@@ -84,6 +92,10 @@ export class PropertiesEditorComponent {
   ];
 
   constructor(private uiBuilder: UiBuilderService) {}
+
+  toggleCollapse() {
+    this.uiBuilder.togglePropertiesPanelCollapsed();
+  }
 
   toggleLock(element: UIElement, event: Event) {
     const input = event.target as HTMLInputElement | null;

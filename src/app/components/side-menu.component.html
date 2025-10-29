@@ -1,11 +1,26 @@
-<div class="side-menu">
+<div class="side-menu" [class.is-collapsed]="isCollapsed()">
   <div class="menu-header">
-    <h3>UI Builder</h3>
-    <span class="menu-subtitle">Element library</span>
+    <div class="menu-header__titles">
+      <h3>{{ headerTitle() }}</h3>
+      @if (!isCollapsed()) {
+        <span class="menu-subtitle">Element library</span>
+      }
+    </div>
+    <button
+      type="button"
+      class="collapse-button"
+      (click)="toggleCollapse()"
+      [attr.aria-label]="collapseToggleLabel()"
+      [title]="collapseToggleLabel()"
+      [attr.aria-expanded]="!isCollapsed()"
+    >
+      {{ isCollapsed() ? '>' : '<' }}
+    </button>
   </div>
 
-  <!-- Add Element Section -->
-  <div class="menu-section">
+  @if (!isCollapsed()) {
+    <!-- Add Element Section -->
+    <div class="menu-section">
     <h4>Add Element</h4>
     <div class="element-types">
       @for (type of elementTypes; track type) {
@@ -64,12 +79,12 @@
         <span class="add-target">Adding to: <strong>Root</strong></span>
       }
     </div>
-  </div>
+    </div>
 
-  <!-- Snapping -->
+    <!-- Snapping -->
 
-  <!-- Element Hierarchy -->
-  <div class="menu-section">
+    <!-- Element Hierarchy -->
+    <div class="menu-section">
     <h4>Element Hierarchy</h4>
     <div class="element-tree">
       @if (elements().length === 0) {
@@ -123,10 +138,10 @@
         }
       }
     </div>
-  </div>
+    </div>
 
-  <!-- Actions -->
-  <div class="menu-section">
+    <!-- Actions -->
+    <div class="menu-section">
     <h4>Actions</h4>
     <div class="actions">
       <button 
@@ -144,5 +159,6 @@
         🗑️ Clear All
       </button>
     </div>
-  </div>
+    </div>
+  }
 </div>
