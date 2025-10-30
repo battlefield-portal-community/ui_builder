@@ -1,4 +1,4 @@
-import { Component, OnDestroy, computed, signal } from '@angular/core';
+import { Component, computed, signal, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { UiBuilderService, UIExportArtifacts } from '../services/ui-builder.service';
 import { CanvasBackgroundAsset, CanvasBackgroundMode } from '../../models/types';
@@ -12,7 +12,7 @@ type BannerMessage = { type: 'success' | 'error'; text: string };
   templateUrl: './header-bar.component.html',
   styleUrl: './header-bar.component.scss'
 })
-export class HeaderBarComponent implements OnDestroy {
+export class HeaderBarComponent implements AfterViewInit {
   readonly title = 'UI Builder';
   readonly defaultBackgroundImage: CanvasBackgroundAsset;
 
@@ -35,9 +35,20 @@ export class HeaderBarComponent implements OnDestroy {
   readonly bannerMessage = signal<BannerMessage | null>(null);
 
   private bannerTimeout: number | null = null;
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(private readonly uiBuilder: UiBuilderService) {
     this.defaultBackgroundImage = this.uiBuilder.defaultCanvasBackgroundImage;
+  }
+
+  ngAfterViewInit(): void {
+    this.updateHeaderHeight();
+    const header = document.querySelector('.header-bar');
+    if (header && typeof ResizeObserver !== 'undefined') {
+      this.resizeObserver = new ResizeObserver(() => this.updateHeaderHeight());
+      this.resizeObserver.observe(header as Element);
+    }
+    window.addEventListener('resize', this.updateHeaderHeight);
   }
 
   openSettingsModal() {
@@ -48,9 +59,11 @@ export class HeaderBarComponent implements OnDestroy {
     this.settingsModalOpen.set(false);
   }
 
-  ngOnDestroy() {
-    this.clearBannerTimeout();
-  }
+  private updateHeaderHeight = (): void => {
+    const header = document.querySelector('.header-bar') as HTMLElement | null;
+    const height = header ? Math.ceil(header.getBoundingClientRect().height) : 0;
+    document.documentElement.style.setProperty('--app-header-height', `${height}px`);
+  };
 
   setBackgroundMode(mode: CanvasBackgroundMode) {
     this.uiBuilder.setCanvasBackgroundMode(mode);

@@ -1,4 +1,4 @@
-import { Component, ElementRef, ViewChild, AfterViewInit, OnDestroy, computed, signal } from '@angular/core';
+import { Component, ElementRef, ViewChild, AfterViewInit, computed, signal } from '@angular/core';
 import { UiBuilderService } from '../services/ui-builder.service';
 import { UIElement, UIAnchor, CANVAS_WIDTH, CANVAS_HEIGHT, UIRect, UIBgFill } from '../../models/types';
 import { CommonModule } from '@angular/common';
@@ -10,7 +10,7 @@ import { CommonModule } from '@angular/common';
   templateUrl: './canvas.component.html',
   styleUrl: './canvas.component.scss'
 })
-export class CanvasComponent implements AfterViewInit, OnDestroy {
+export class CanvasComponent implements AfterViewInit {
   @ViewChild('canvasContainer', { static: false }) canvasContainer!: ElementRef<HTMLDivElement>;
   @ViewChild('canvas', { static: false }) canvasElement!: ElementRef<HTMLDivElement>;
 
@@ -102,17 +102,6 @@ export class CanvasComponent implements AfterViewInit, OnDestroy {
 
     if (this.canvasContainer) {
       this.canvasContainer.nativeElement.addEventListener('wheel', this.boundWheel, { passive: false });
-    }
-  }
-
-  ngOnDestroy() {
-    // Clean up event listeners
-    document.removeEventListener('mousemove', this.boundMouseMove);
-    document.removeEventListener('mouseup', this.boundMouseUp);
-    document.removeEventListener('keydown', this.boundKeyDown);
-
-    if (this.canvasContainer) {
-      this.canvasContainer.nativeElement.removeEventListener('wheel', this.boundWheel);
     }
   }
 

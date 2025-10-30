@@ -13,6 +13,11 @@
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
+/* Ensure positioned ancestor for absolute/overlay children */
+.app-shell {
+  position: relative;
+}
+
 .ui-builder {
   display: flex;
   flex: 1 1 auto;

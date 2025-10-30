@@ -800,6 +800,8 @@ export class UiBuilderService {
     }
 
     this._selectedElementIds.set([normalizedId]);
+    // Ensure properties panel is visible when an element is selected
+    this.setPropertiesPanelCollapsed(false);
   }
 
   toggleElementSelection(elementId: string): void {
@@ -814,6 +816,9 @@ export class UiBuilderService {
     if (this._selectedElementIds().length) {
       this._selectedElementIds.set([]);
     }
+
+    // When nothing is selected, collapse the properties panel to save space
+    this.setPropertiesPanelCollapsed(true);
   }
 
   isElementSelected(elementId: string | null | undefined): boolean {
