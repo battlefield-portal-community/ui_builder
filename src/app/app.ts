@@ -4,22 +4,10 @@ import { SideMenuComponent } from './components/side-menu.component';
 import { CanvasComponent } from './components/canvas.component';
 import { PropertiesEditorComponent } from './components/properties-editor.component';
 import { HeaderBarComponent } from './components/header-bar.component';
-
-@Component({
-  selector: 'app-root',
-  imports: [RouterOutlet, HeaderBarComponent, SideMenuComponent, CanvasComponent, PropertiesEditorComponent],
-  templateUrl: './app.html',
-  styleUrl: './app.scss'
-})
-export class App {
-  protected readonly title = signal('BfUiBuilder');
-}
-
-// Set a CSS variable with the header height so overlays can position below it.
-export class AppLayoutHelpers implements AfterViewInit, OnDestroy {
+class AppLayoutHelpers {
   private resizeObserver: ResizeObserver | null = null;
 
-  ngAfterViewInit(): void {
+  protected initLayout(): void {
     this.updateHeaderHeight();
     const header = document.querySelector('.header-bar');
     if (header && typeof ResizeObserver !== 'undefined') {
@@ -29,7 +17,7 @@ export class AppLayoutHelpers implements AfterViewInit, OnDestroy {
     window.addEventListener('resize', this.updateHeaderHeight);
   }
 
-  ngOnDestroy(): void {
+  protected disposeLayout(): void {
     if (this.resizeObserver) {
       this.resizeObserver.disconnect();
       this.resizeObserver = null;
@@ -42,4 +30,22 @@ export class AppLayoutHelpers implements AfterViewInit, OnDestroy {
     const height = header ? Math.ceil(header.getBoundingClientRect().height) : 0;
     document.documentElement.style.setProperty('--app-header-height', `${height}px`);
   };
+}
+
+@Component({
+  selector: 'app-root',
+  imports: [RouterOutlet, HeaderBarComponent, SideMenuComponent, CanvasComponent, PropertiesEditorComponent],
+  templateUrl: './app.html',
+  styleUrls: ['./app.scss']
+})
+export class App extends AppLayoutHelpers implements AfterViewInit, OnDestroy {
+  protected readonly title = signal('BfUiBuilder');
+  
+  ngAfterViewInit(): void {
+    this.initLayout();
+  }
+
+  ngOnDestroy(): void {
+    this.disposeLayout();
+  }
 }

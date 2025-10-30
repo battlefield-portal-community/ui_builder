@@ -572,7 +572,7 @@ app-side-menu .snap-toggle__hint {
 
 app-side-menu .element-tree {
   max-height: 300px;
-  overflow-y: auto;
+  overflow: scroll;
 }
 
 app-side-menu .empty-state {
