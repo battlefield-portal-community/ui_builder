@@ -882,12 +882,89 @@ export class UiBuilderService {
     }
   }
 
-  moveElement(elementId: string, direction: 'up' | 'down'): void {
-    const offset = direction === 'up' ? -1 : 1;
+  moveElementToParent(elementId: string, targetParentId: string | null, targetIndex?: number): boolean {
+    const element = this.findElementById(elementId);
+    if (!element) {
+      return false;
+    }
+
+    const location = this.getElementLocation(elementId);
+    if (!location) {
+      return false;
+    }
+
+    if (targetParentId === elementId) {
+      return false;
+    }
+
+    if (targetParentId) {
+      const targetParent = this.findElementById(targetParentId);
+      if (!targetParent || !this.canElementAcceptChildren(targetParent)) {
+        return false;
+      }
+
+      if (this.isElementDescendant(elementId, targetParentId)) {
+        return false;
+      }
+    }
+
+    let insertIndex: number | null = Number.isFinite(targetIndex)
+      ? Math.max(0, Math.floor(targetIndex as number))
+      : null;
+
+    if (targetParentId === location.parentId) {
+      if (insertIndex === null) {
+        if (location.index === location.siblingCount - 1) {
+          return false;
+        }
+      } else {
+        if (insertIndex > location.index) {
+          insertIndex -= 1;
+        }
+        if (insertIndex === location.index) {
+          return false;
+        }
+      }
+    }
+
+    let moved = false;
+
     this._elements.update(elements => {
-      const { elements: updated, moved } = this.moveElementRecursive(elements, elementId, offset);
-      return moved ? updated : elements;
+      const detachResult = this.detachElement(elements, elementId);
+      if (!detachResult.element) {
+        return elements;
+      }
+
+      const node = detachResult.element;
+
+      if (!targetParentId) {
+        const next = [...detachResult.elements];
+        const position = this.clampIndex(insertIndex ?? next.length, next.length);
+        next.splice(position, 0, node);
+        moved = true;
+        return next;
+      }
+
+      const insertResult = this.insertElementIntoParent(
+        detachResult.elements,
+        targetParentId,
+        node,
+        insertIndex
+      );
+
+      if (!insertResult.inserted) {
+        return elements;
+      }
+
+      moved = true;
+      return insertResult.elements;
     });
+
+    if (moved) {
+      this.selectElement(elementId);
+    }
+
+    return moved;
   }
 
   copySelection(): boolean {
@@ -1276,6 +1353,113 @@ export class UiBuilderService {
     });
 
     return { elements: moved ? updated : elements, moved };
+  }
+
+  private detachElement(
+    elements: UIElement[],
+    targetId: string
+  ): { elements: UIElement[]; element: UIElement | null } {
+    let removed: UIElement | null = null;
+
+    const next = elements.reduce<UIElement[]>((acc, current) => {
+      if (removed) {
+        acc.push(current);
+        return acc;
+      }
+
+      if (current.id === targetId) {
+        removed = current;
+        return acc;
+      }
+
+      if (current.children?.length) {
+        const result = this.detachElement(current.children, targetId);
+        if (result.element) {
+          removed = result.element;
+          acc.push({
+            ...current,
+            children: result.elements,
+          });
+          return acc;
+        }
+      }
+
+      acc.push(current);
+      return acc;
+    }, []);
+
+    if (!removed) {
+      return { elements, element: null };
+    }
+
+    return { elements: next, element: removed };
+  }
+
+  private insertElementIntoParent(
+    elements: UIElement[],
+    parentId: string,
+    child: UIElement,
+    targetIndex: number | null
+  ): { elements: UIElement[]; inserted: boolean } {
+    let inserted = false;
+
+    const next = elements.map(element => {
+      if (inserted) {
+        return element;
+      }
+
+      if (element.id === parentId) {
+        const currentChildren = element.children ? [...element.children] : [];
+        const index = this.clampIndex(targetIndex ?? currentChildren.length, currentChildren.length);
+        const updatedChildren = [...currentChildren];
+        updatedChildren.splice(index, 0, child);
+        inserted = true;
+        return {
+          ...element,
+          children: updatedChildren,
+        };
+      }
+
+      if (element.children?.length) {
+        const result = this.insertElementIntoParent(element.children, parentId, child, targetIndex);
+        if (result.inserted) {
+          inserted = true;
+          return {
+            ...element,
+            children: result.elements,
+          };
+        }
+      }
+
+      return element;
+    });
+
+    return inserted ? { elements: next, inserted: true } : { elements, inserted: false };
+  }
+
+  private isElementDescendant(ancestorId: string, descendantId: string): boolean {
+    const ancestor = this.findElementById(ancestorId);
+    if (!ancestor?.children?.length) {
+      return false;
+    }
+
+    const stack = [...ancestor.children];
+    while (stack.length) {
+      const node = stack.pop();
+      if (!node) {
+        continue;
+      }
+
+      if (node.id === descendantId) {
+        return true;
+      }
+
+      if (node.children?.length) {
+        stack.push(...node.children);
+      }
+    }
+
+    return false;
   }
 
   private collectElementNames(): Set<string> {

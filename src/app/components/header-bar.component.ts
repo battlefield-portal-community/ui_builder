@@ -13,7 +13,7 @@ type BannerMessage = { type: 'success' | 'error'; text: string };
   styleUrl: './header-bar.component.scss'
 })
 export class HeaderBarComponent implements AfterViewInit {
-  readonly version = 'V1.5.0';
+  readonly version = 'V1.5.1';
   readonly title = 'UI Builder';
   readonly defaultBackgroundImage: CanvasBackgroundAsset;
 

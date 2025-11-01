@@ -32,9 +32,6 @@ BfUiBuilder is a browser-based layout designer for Battlefield Portal user inter
 - Buttons with text
 
 ## Bugs
-- Ability to add sub elements to a text container (need to test in game if that's legal)
-- Zooming breaks element positionning
-- Buttons are not in the correct format
 
 ## Getting started
 

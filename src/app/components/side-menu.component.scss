@@ -96,3 +96,151 @@
   background: #4a4a4a;
   border-color: #4a9eff;
 }
+
+.menu-section {
+  padding: var(--panel-padding);
+  border-bottom: 1px solid #333;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.menu-section:last-child {
+  border-bottom: none;
+}
+
+.element-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.tree-element {
+  background: #1f1f1f;
+  border: 1px solid #3b3b3b;
+  border-radius: 4px;
+  margin: 2px 0;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.tree-element.selected {
+  border-color: #4a9eff;
+  background: #1f2a3b;
+}
+
+.tree-element.locked .element-name {
+  opacity: 0.7;
+}
+
+.element-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grab;
+  padding: 8px 10px;
+}
+
+.element-item:active {
+  cursor: grabbing;
+}
+
+.child-indicator {
+  width: 20px;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  color: #6b7280;
+}
+
+.element-icon {
+  width: 20px;
+}
+
+.element-name {
+  flex: 1;
+  color: #f3f4f6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.element-lock-label {
+  margin-left: 6px;
+  color: #fbbf24;
+  font-size: 11px;
+}
+
+.element-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.action-btn {
+  width: 26px;
+  height: 26px;
+  border: 1px solid #3f3f3f;
+  border-radius: 4px;
+  background: #2f2f2f;
+  color: #d1d5db;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.action-btn:not(:disabled):hover {
+  background: #3e3e3e;
+  border-color: #4a9eff;
+}
+
+.drop-zone {
+  display: none;
+  pointer-events: none;
+  border: 1px dashed transparent;
+  border-radius: 6px;
+  color: #9ca3af;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  font-size: 12px;
+}
+
+:host.dragging .drop-zone {
+  display: flex;
+  pointer-events: auto;
+}
+
+.drop-zone--between {
+  height: 8px;
+  margin: 2px 0;
+}
+
+.drop-zone--root {
+  height: 12px;
+  margin: 6px 0;
+}
+
+.drop-zone--child {
+  min-height: 28px;
+  padding: 4px 12px;
+  margin: 6px 0 2px;
+  background: rgba(74, 158, 255, 0.08);
+  border-color: rgba(74, 158, 255, 0.4);
+  color: #cbd5ff;
+}
+
+.drop-zone__label {
+  font-size: 11px;
+  opacity: 0.85;
+}
+
+.drop-zone.is-active {
+  border-color: #4a9eff;
+  background: rgba(74, 158, 255, 0.2);
+  color: #f9fafb;
+}

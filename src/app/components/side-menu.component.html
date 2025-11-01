@@ -90,10 +90,28 @@
       @if (elements().length === 0) {
         <div class="empty-state">No elements yet</div>
       } @else {
-        @for (item of getFlattenedElements(); track item.element.id) {
+        <div
+          class="drop-zone drop-zone--root"
+          [class.is-active]="isDropHint(null, 'root-start')"
+          (dragover)="onDragOverZone($event, { targetId: null, parentId: null, index: 0, mode: 'root-start' })"
+          (dragleave)="onDragLeaveZone($event, { targetId: null, parentId: null, index: 0, mode: 'root-start' })"
+          (drop)="onDropZone($event, { targetId: null, parentId: null, index: 0, mode: 'root-start' })"
+        ></div>
+        @for (item of flattenedElements(); track item.element.id) {
+          <div
+            class="drop-zone drop-zone--between"
+            [class.is-active]="isDropHint(item.element.id, 'before')"
+            [style.margin-left.px]="item.level * 20"
+            (dragover)="onDragOverZone($event, { targetId: item.element.id, parentId: item.parentId, index: item.index, mode: 'before' })"
+            (dragleave)="onDragLeaveZone($event, { targetId: item.element.id, parentId: item.parentId, index: item.index, mode: 'before' })"
+            (drop)="onDropZone($event, { targetId: item.element.id, parentId: item.parentId, index: item.index, mode: 'before' })"
+          ></div>
           <div class="tree-element" [class.selected]="selectedElementIdSet().has(item.element.id)" [class.locked]="item.element.locked">
             <div 
               class="element-item"
+              draggable="true"
+              (dragstart)="onDragStart($event, item.element.id)"
+              (dragend)="onDragEnd()"
               (click)="selectElement(item.element.id)"
               [style.padding-left.px]="item.level * 20"
             >
@@ -108,25 +126,15 @@
               <div class="element-actions">
                 <button
                   class="action-btn lock-btn"
+                  draggable="false"
                   (click)="toggleElementLock($event, item.element)"
                   [title]="item.element.locked ? 'Unlock element' : 'Lock element'"
                 >
                   {{ item.element.locked ? '🔓' : '🔒' }}
                 </button>
-                <button
-                  class="action-btn move-btn"
-                  (click)="moveElement($event, item.element.id, 'up')"
-                  [disabled]="!canMove(item.element, 'up')"
-                  title="Move up"
-                >⬆️</button>
-                <button
-                  class="action-btn move-btn"
-                  (click)="moveElement($event, item.element.id, 'down')"
-                  [disabled]="!canMove(item.element, 'down')"
-                  title="Move down"
-                >⬇️</button>
                 <button 
                   class="action-btn delete-btn"
+                  draggable="false"
                   (click)="deleteElement($event, item.element.id)"
                   title="Delete element"
                 >
@@ -134,8 +142,35 @@
                 </button>
               </div>
             </div>
+            @if (item.element.type === 'Container') {
+              <div
+                class="drop-zone drop-zone--child"
+                [class.is-active]="isDropHint(item.element.id, 'child')"
+                [style.margin-left.px]="(item.level + 1) * 20"
+                (dragover)="onDragOverZone($event, { targetId: item.element.id, parentId: item.element.id, index: item.element.children?.length ?? 0, mode: 'child' })"
+                (dragleave)="onDragLeaveZone($event, { targetId: item.element.id, parentId: item.element.id, index: item.element.children?.length ?? 0, mode: 'child' })"
+                (drop)="onDropZone($event, { targetId: item.element.id, parentId: item.element.id, index: item.element.children?.length ?? 0, mode: 'child' })"
+              >
+                <span class="drop-zone__label">Drop into {{item.element.name}}</span>
+              </div>
+            }
           </div>
+          <div
+            class="drop-zone drop-zone--between"
+            [class.is-active]="isDropHint(item.element.id, 'after')"
+            [style.margin-left.px]="item.level * 20"
+            (dragover)="onDragOverZone($event, { targetId: item.element.id, parentId: item.parentId, index: item.index + 1, mode: 'after' })"
+            (dragleave)="onDragLeaveZone($event, { targetId: item.element.id, parentId: item.parentId, index: item.index + 1, mode: 'after' })"
+            (drop)="onDropZone($event, { targetId: item.element.id, parentId: item.parentId, index: item.index + 1, mode: 'after' })"
+          ></div>
         }
+        <div
+          class="drop-zone drop-zone--root"
+          [class.is-active]="isDropHint(null, 'root-end')"
+          (dragover)="onDragOverZone($event, { targetId: null, parentId: null, index: elements().length, mode: 'root-end' })"
+          (dragleave)="onDragLeaveZone($event, { targetId: null, parentId: null, index: elements().length, mode: 'root-end' })"
+          (drop)="onDropZone($event, { targetId: null, parentId: null, index: elements().length, mode: 'root-end' })"
+        ></div>
       }
     </div>
     </div>
