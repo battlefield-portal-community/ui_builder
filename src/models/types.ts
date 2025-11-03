@@ -263,7 +263,7 @@ export const DEFAULT_UI_PARAMS: Partial<UIElement> = {
     imageColor: [1, 1, 1],
     imageAlpha: 1,
     buttonEnabled: false,
-    buttonColorBase: [0.3, 0.3, 0.3],
+    buttonColorBase: [1, 1, 1],
     buttonAlphaBase: 1,
     buttonColorDisabled: [0.1, 0.1, 0.1],
     buttonAlphaDisabled: 0.5,
