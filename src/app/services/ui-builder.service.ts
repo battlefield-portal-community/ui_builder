@@ -19,6 +19,7 @@ import {
   UIAdvancedSlotBindingMap,
   UIAdvancedSlotBindingValue,
   UIAdvancedSlotMultiplicity,
+  DEFAULT_BUTTON_PARAMS,
 } from '../../models/types';
 import { registerAllAdvancedPresets } from '../advanced-presets/registry';
 import { buildAdvancedExportClasses as builder_buildAdvancedExportClasses, buildAdvancedTypescriptCode as builder_buildAdvancedTypescriptCode } from './export/advanced-export.builder';
@@ -658,11 +659,12 @@ export class UiBuilderService {
   // Create a new UI element with default values
   createUIElement(type: UIElementTypes, name?: string): UIElement {
     const id = this.generateId();
+    const ui_params = type === 'Button' ? { ...DEFAULT_BUTTON_PARAMS } : { ...DEFAULT_UI_PARAMS };
     return {
       id,
       name: name || `${type}_${generateRandomSuffix()}`,
       type,
-      ...DEFAULT_UI_PARAMS,
+      ...ui_params,
       advancedMetadata: null,
       children: [],
     } as UIElement;

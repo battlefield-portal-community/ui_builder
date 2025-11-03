@@ -34,7 +34,7 @@
       <div 
         class="ui-element"
         [class.child-element]="!!parent"
-  [class.selected]="selectedElementIdSet().has(element.id)"
+        [class.selected]="selectedElementIdSet().has(element.id)"
         [class.dragging]="isDragging && dragElement?.id === element.id"
         [class.locked]="element.locked"
         [style]="getElementStyle(element, parent)"

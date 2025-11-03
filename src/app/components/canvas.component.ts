@@ -931,8 +931,22 @@ export class CanvasComponent implements AfterViewInit {
   }
 
   getButtonStyle(element: UIElement): any {
+    // buttonColorBase is the true color, bgColor is the channel mask
+    const baseColor = element?.buttonColorBase ?? [1, 1, 1];
+    const channelMask = element?.bgColor ?? [1, 1, 1];
+    
+    // Apply channel mask to base color (multiply each channel)
+    const maskedColor = [0, 1, 2].map(index => {
+      const baseComponent = Number.isFinite(baseColor[index]) ? baseColor[index] : 1;
+      const maskComponent = Number.isFinite(channelMask[index]) ? channelMask[index] : 1;
+      return this.clamp01(baseComponent * maskComponent);
+    });
+    
+    // Combine alpha values: buttonAlphaBase * bgAlpha
+    const combinedAlpha = this.clamp01((element.buttonAlphaBase ?? 1) * (element.bgAlpha ?? 1));
+
     return {
-      backgroundColor: this.colorToRgba(element?.buttonColorBase ?? [1, 1, 1], element.buttonAlphaBase ?? 1),
+      backgroundColor: this.colorToRgba(maskedColor, combinedAlpha),
       color: this.colorToRgba(element?.textColor ?? [1, 1, 1], element.textAlpha ?? 1),
       fontSize: `${(element?.textSize ?? 1) * this.scale()}px`,
       padding: `${element.padding}px`,
@@ -942,5 +956,21 @@ export class CanvasComponent implements AfterViewInit {
   roundValue(value: number, decimals: number): number {
     const factor = Math.pow(10, decimals);
     return Math.round(value * factor) / factor;
+  }
+
+  private clamp01(value: number): number {
+    if (!Number.isFinite(value)) {
+      return 0;
+    }
+
+    if (value <= 0) {
+      return 0;
+    }
+
+    if (value >= 1) {
+      return 1;
+    }
+
+    return value;
   }
 }

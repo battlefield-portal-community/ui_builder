@@ -219,63 +219,49 @@
         </div>
       }
 
+      @if (element.type !== 'Button') {
       <!-- Background Properties -->
       <div class="property-group">
         <h4>Background</h4>
-        
+      
         <div class="property-row">
           <label>Background Color: <br>
-            <a href="https://www.figma.com/design/jLoYZpZ0HFwJqAbhlMATgn/BF6-UI?node-id=0-1&p=f" target="_blank">Design sheet</a>
+            <a href="https://www.figma.com/design/jLoYZpZ0HFwJqAbhlMATgn/BF6-UI?node-id=0-1&p=f" target="_blank">Design
+              sheet</a>
           </label>
           <div class="color-input">
             <div class="color-palette">
               @for (color of colorPalette; track color) {
-                <button
-                  type="button"
-                  class="color-swatch"
-                  [class.selected]="isPaletteColorSelected(element.bgColor, color)"
-                  [style.background-color]="color"
-                  (click)="setColorProperty('bgColor', color)"
-                  [attr.aria-label]="'Set background color to ' + color"
-                ></button>
+              <button type="button" class="color-swatch" [class.selected]="isPaletteColorSelected(element.bgColor, color)"
+                [style.background-color]="color" (click)="setColorProperty('bgColor', color)"
+                [attr.aria-label]="'Set background color to ' + color"></button>
               }
             </div>
             <div class="color-picker-group">
-              <input
-                type="color"
-                [value]="colorArrayToHex(element.bgColor)"
-                (input)="onColorPickerChange('bgColor', $event)"
-              />
+              <input type="color" [value]="colorArrayToHex(element.bgColor)"
+                (input)="onColorPickerChange('bgColor', $event)" />
               <span class="color-value">{{ colorArrayToHex(element.bgColor) }}</span>
               <div class="color-preview" [style.background-color]="getColorPreview(element.bgColor)"></div>
             </div>
           </div>
         </div>
-        
+      
         <div class="property-row">
           <label>Background Alpha (transparency):</label>
-          <input 
-            type="number" 
-            [value]="element.bgAlpha"
-            (input)="updateProperty('bgAlpha', $event)"
-            min="0"
-            max="1"
-            step="0.1"
-          />
+          <input type="number" [value]="element.bgAlpha" (input)="updateProperty('bgAlpha', $event)" min="0" max="1"
+            step="0.1" />
         </div>
-        
+      
         <div class="property-row">
           <label>Background Fill:</label>
-          <select 
-            [value]="element.bgFill"
-            (change)="updateProperty('bgFill', $event)"
-          >
+          <select [value]="element.bgFill" (change)="updateProperty('bgFill', $event)">
             @for (fill of bgFillOptions; track fill.value) {
-              <option [value]="fill.value">{{fill.label}}</option>
+            <option [value]="fill.value">{{fill.label}}</option>
             }
           </select>
         </div>
       </div>
+      }
 
       <!-- Image Properties -->
       @if (element.type === 'Image') {

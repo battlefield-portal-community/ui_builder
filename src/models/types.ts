@@ -276,6 +276,35 @@ export const DEFAULT_UI_PARAMS: Partial<UIElement> = {
     advancedMetadata: null,
 };
 
+
+export const DEFAULT_BUTTON_PARAMS: Partial<UIElement> = {
+    parent: null,
+
+    locked: false,
+
+    position: [0, 0],
+    size: [100, 50],
+    anchor: UIAnchor.TopLeft,
+    visible: true,
+    padding: 0,
+    //Bg color acts as a mask for each color channel (0 on red means that red doesn't show)
+    bgColor: [1, 1, 1],
+    bgAlpha: 1,
+    bgFill: UIBgFill.Solid,
+    buttonEnabled: true,
+    buttonColorBase: [1, 1, 1],
+    buttonAlphaBase: 1,
+    buttonColorDisabled: [0.1, 0.1, 0.1],
+    buttonAlphaDisabled: 0.5,
+    buttonColorPressed: [0.2, 0.2, 0.2],
+    buttonAlphaPressed: 1,
+    buttonColorHover: [0.4, 0.4, 0.4],
+    buttonAlphaHover: 1,
+    buttonColorFocused: [0.5, 0.5, 0.5],
+    buttonAlphaFocused: 1,
+    advancedMetadata: null,
+};
+
 export type CanvasBackgroundMode = 'black' | 'white' | 'image';
 
 export interface CanvasBackgroundAsset {
