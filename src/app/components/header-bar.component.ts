@@ -13,7 +13,7 @@ type BannerMessage = { type: 'success' | 'error'; text: string };
   styleUrl: './header-bar.component.scss'
 })
 export class HeaderBarComponent implements AfterViewInit {
-  readonly version = 'V1.5.2';
+  readonly version = 'V1.5.3';
   readonly title = 'UI Builder';
   readonly defaultBackgroundImage: CanvasBackgroundAsset;
 
@@ -31,6 +31,7 @@ export class HeaderBarComponent implements AfterViewInit {
   readonly showContainerLabels = computed(() => this.uiBuilder.showContainerLabels());
   readonly importModalOpen = signal(false);
   readonly importSource = signal('');
+  readonly importStrings = signal('');
   readonly importError = signal<string | null>(null);
   readonly importMode = signal<'replace' | 'append'>('replace');
   readonly bannerMessage = signal<BannerMessage | null>(null);
@@ -177,6 +178,7 @@ export class HeaderBarComponent implements AfterViewInit {
 
   openImportModal() {
     this.importSource.set('');
+    this.importStrings.set('');
     this.importError.set(null);
     this.importMode.set('replace');
     this.importModalOpen.set(true);
@@ -185,6 +187,7 @@ export class HeaderBarComponent implements AfterViewInit {
   closeImportModal() {
     this.importModalOpen.set(false);
     this.importSource.set('');
+    this.importStrings.set('');
     this.importError.set(null);
     this.importMode.set('replace');
   }
@@ -192,6 +195,14 @@ export class HeaderBarComponent implements AfterViewInit {
   onImportSourceChange(event: Event) {
     const value = (event.target as HTMLTextAreaElement | null)?.value ?? '';
     this.importSource.set(value);
+    if (this.importError()) {
+      this.importError.set(null);
+    }
+  }
+
+  onImportStringsChange(event: Event) {
+    const value = (event.target as HTMLTextAreaElement | null)?.value ?? '';
+    this.importStrings.set(value);
     if (this.importError()) {
       this.importError.set(null);
     }
@@ -214,9 +225,10 @@ export class HeaderBarComponent implements AfterViewInit {
     }
 
     const mode = this.importMode();
+    const stringsJson = this.importStrings().trim();
 
     try {
-      const result = this.uiBuilder.importFromTypescript(source, { mode });
+      const result = this.uiBuilder.importFromTypescript(source, { mode, stringsJson: stringsJson || undefined });
       if (!result.success) {
         this.importError.set(result.error ?? 'Import failed.');
         this.showBannerMessage(result.error ?? 'Import failed.', 'error', false);
@@ -232,7 +244,10 @@ export class HeaderBarComponent implements AfterViewInit {
           ? 'No new elements detected.'
           : 'UI cleared. No elements detected in snippet.'
         : `${verb} ${count} root element${suffix} from script.`;
-      this.showBannerMessage(details, 'success');
+      
+      // Add info about strings if they were imported
+      const stringsInfo = stringsJson ? ' Text strings applied.' : '';
+      this.showBannerMessage(details + stringsInfo, 'success');
     } catch (error) {
       console.error('Failed to import UI:', error);
       this.importError.set('Unexpected error while importing. Please verify the snippet and try again.');

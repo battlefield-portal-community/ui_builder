@@ -239,11 +239,27 @@
           <textarea
             id="import-source"
             class="import-textarea"
-            rows="14"
+            rows="10"
             [value]="importSource()"
             (input)="onImportSourceChange($event)"
             placeholder="const widget = modlib.ParseUI(...);"
           ></textarea>
+          
+          <div class="import-strings-section">
+            <label for="import-strings">
+              Paste the strings JSON file (optional):
+              <span class="import-strings-hint">This will populate text elements with localized strings</span>
+            </label>
+            <textarea
+              id="import-strings"
+              class="import-textarea import-textarea--strings"
+              rows="6"
+              [value]="importStrings()"
+              (input)="onImportStringsChange($event)"
+              placeholder='{"ElementName": "Display Text", ...}'
+            ></textarea>
+          </div>
+
           <p class="import-help">By default, existing elements are replaced. Enable append to keep the current layout. Your project is auto-saved before import.</p>
           <div class="import-mode-toggle">
             <label class="mode-switch">

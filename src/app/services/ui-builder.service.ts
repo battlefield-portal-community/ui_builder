@@ -1745,7 +1745,7 @@ export class UiBuilderService {
 
   importFromTypescript(
     source: string,
-    options?: { mode?: 'replace' | 'append' }
+    options?: { mode?: 'replace' | 'append'; stringsJson?: string }
   ): { success: boolean; importedCount: number; error?: string } {
     const text = typeof source === 'string' ? source : '';
     if (!text.trim()) {
@@ -1776,6 +1776,11 @@ export class UiBuilderService {
         this._elements.set(restored);
       }
 
+      // Apply strings if provided
+      if (options?.stringsJson) {
+        this.importStringsJson(options.stringsJson);
+      }
+
       this.clearSelection();
 
       return { success: true, importedCount: restored.length };
@@ -1783,6 +1788,72 @@ export class UiBuilderService {
       const message = error instanceof Error ? error.message : 'Failed to import UI script.';
       return { success: false, importedCount: 0, error: message };
     }
+  }
+
+  importStringsJson(stringsJson: string): { success: boolean; appliedCount: number; error?: string } {
+    const text = typeof stringsJson === 'string' ? stringsJson.trim() : '';
+    if (!text) {
+      return { success: true, appliedCount: 0 };
+    }
+
+    try {
+      const strings = JSON.parse(text);
+      if (!strings || typeof strings !== 'object' || Array.isArray(strings)) {
+        return { success: false, appliedCount: 0, error: 'Invalid strings JSON format.' };
+      }
+
+      let appliedCount = 0;
+
+      // Apply strings to matching elements by name or ID
+      this._elements.update(elements => {
+        return this.applyStringsToElements(elements, strings, (count) => {
+          appliedCount += count;
+        });
+      });
+
+      return { success: true, appliedCount };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to parse strings JSON.';
+      return { success: false, appliedCount: 0, error: message };
+    }
+  }
+
+  private applyStringsToElements(
+    elements: UIElement[],
+    strings: Record<string, string>,
+    onApplied: (count: number) => void
+  ): UIElement[] {
+    return elements.map(element => {
+      let updated = element;
+
+      // Check if this element has a matching string by name or ID
+      if (element.type === 'Text') {
+        const key = element.name || element.id;
+        if (key in strings) {
+          const stringValue = strings[key];
+          if (typeof stringValue === 'string' && stringValue.trim().length > 0) {
+            updated = {
+              ...element,
+              textLabel: stringValue,
+            };
+            onApplied(1);
+          }
+        }
+      }
+
+      // Recursively apply to children
+      if (element.children?.length) {
+        const updatedChildren = this.applyStringsToElements(element.children, strings, onApplied);
+        if (updatedChildren !== element.children) {
+          updated = {
+            ...updated,
+            children: updatedChildren,
+          };
+        }
+      }
+
+      return updated;
+    });
   }
 
   // Clear all elements
